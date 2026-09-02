@@ -8,28 +8,48 @@ const chapters = (await getCollection('chapters'))
   .sort((a, b) => a.data.order - b.data.order);
 
 // Parts are derived, not typed: a chapter's part is a function of its order,
-// so inserting a chapter never means re-labelling the ones after it.
-const PARTS = [
-  { from: 1,  to: 7,  label: 'The Request Path',  blurb: 'How bytes on a socket become a handled request.' },
-  { from: 8,  to: 14, label: 'State & Machinery',  blurb: 'Where data lives, and the moving parts around it.' },
-  { from: 15, to: 20, label: 'Running in Production', blurb: 'Keeping it observable, secure and fast under load.' },
-  { from: 21, to: 25, label: 'Distribution & Scale', blurb: 'Shipping it, testing it, and connecting services in real time.' },
+// so inserting a chapter never means re-labelling the ones after it. Only the
+// chapter a part STARTS at is declared. Each part runs until the next one
+// begins and the last runs to the end of the series, so appending a chapter
+// needs no edit here at all.
+const PART_STARTS = [
+  { from: 1,  label: 'The Request Path',     blurb: 'How bytes on a socket become a handled request.' },
+  { from: 8,  label: 'State & Machinery',    blurb: 'Where data lives, and the moving parts around it.' },
+  { from: 15, label: 'Running in Production', blurb: 'Keeping it observable, secure and fast under load.' },
+  { from: 21, label: 'Distribution & Scale', blurb: 'Shipping it, testing it, and connecting services in real time.' },
 ];
-const grouped = PARTS.map((p) => ({
-  ...p,
-  chapters: chapters.filter((c) => c.data.order >= p.from && c.data.order <= p.to),
-})).filter((p) => p.chapters.length > 0);
+const lastOrder = chapters.at(-1)?.data.order ?? 0;
+const grouped = PART_STARTS
+  .map((p, i) => ({ ...p, to: PART_STARTS[i + 1] ? PART_STARTS[i + 1].from - 1 : lastOrder }))
+  .map((p) => ({
+    ...p,
+    chapters: chapters.filter((c) => c.data.order >= p.from && c.data.order <= p.to),
+  }))
+  .filter((p) => p.chapters.length > 0);
+
+// The series length appears in the title, the meta description and the hero.
+// Deriving it means a new chapter can never leave a stale number behind.
+const total = chapters.length;
+const firstNum = String(chapters[0]?.data.order ?? 1).padStart(2, '0');
+
+// Everyone who has contributed a chapter, a fix or a translation. The old
+// hand-written homepage credited them; the rebuild dropped the list, so it
+// lives here now and tests/homepage.test.js keeps it honest.
+const CONTRIBUTORS = [
+  'DsThakurRawat', 'yogeshsingh63', 'SaikrishnaReddy1919', 'abhishek-bhatkar',
+  'Prashantkmr389', 'parthpatyl', 'dhrumilbhut', 'jainsparsh5',
+];
 ---
 <Base
-  title="Backend from First Principles — a 25-chapter engineering reference"
-  description="A 25-chapter reference on backend engineering, from HTTP and routing through databases, caching and Kafka to production deployment and real-time media. Notes, diagrams and runnable Go and Python examples."
+  title={`Backend from First Principles — a ${total}-chapter engineering reference`}
+  description={`A ${total}-chapter reference on backend engineering, from HTTP and routing through databases, caching and Kafka to production deployment and real-time media. Notes, diagrams and runnable Go and Python examples.`}
   path="/"
 >
   <SiteHeader />
 
   <main class="home" id="main">
     <section class="hero">
-      <p class="eyebrow">A 25-chapter engineering reference</p>
+      <p class="eyebrow">A {total}-chapter engineering reference</p>
       <h1 class="hero-title">Backend, from <em>first principles</em>.</h1>
       <p class="hero-lede">
         Most backend material teaches a framework. This teaches the machinery underneath it —
@@ -39,7 +59,7 @@ const grouped = PARTS.map((p) => ({
       </p>
       <div class="hero-actions">
         <a class="btn-primary" href={chapters.length ? `/${chapters[0].id}/` : '#chapters'}>
-          Start with Chapter 01
+          Start with Chapter {firstNum}
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="2.5" y1="8" x2="12.5" y2="8" /><polyline points="8.5,4 12.5,8 8.5,12" /></svg>
         </a>
         <button class="btn-ghost" type="button" data-search-open>Search the series</button>
@@ -94,6 +114,13 @@ const grouped = PARTS.map((p) => ({
         <div class="contribute-actions">
           <a class="btn-primary" href="https://github.com/DsThakurRawat/Backend-from-first-Principle" target="_blank" rel="noopener noreferrer">Contribute on GitHub</a>
           <a class="btn-ghost" href="https://github.com/DsThakurRawat/Backend-from-first-Principle/issues" target="_blank" rel="noopener noreferrer">Open an issue</a>
+        </div>
+
+        <div class="contributors" aria-label="Project contributors">
+          <span class="contributors-label">Contributors</span>
+          {CONTRIBUTORS.map((handle) => (
+            <a class="contributor" href={`https://github.com/${handle}`} target="_blank" rel="noopener noreferrer">@{handle}</a>
+          ))}
         </div>
       </div>
     </section>
@@ -296,6 +323,30 @@ const grouped = PARTS.map((p) => ({
     text-wrap: pretty;
   }
   .contribute-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+
+  .contributors {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-4);
+    margin-top: var(--space-6);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--line);
+  }
+  .contributors-label {
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-caps);
+    color: var(--ink-3);
+  }
+  .contributor {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+  .contributor:hover { color: var(--accent); }
 
   /* --- footer ----------------------------------------------------------- */
   .site-footer {
