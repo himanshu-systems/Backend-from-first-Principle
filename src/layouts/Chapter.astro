@@ -21,6 +21,7 @@ const num = String(order).padStart(2, '0');
   title={`${title} · Chapter ${num} · Backend from First Principles`}
   description={summary}
   path={`/${chapter.id}/`}
+  image={`/og/${chapter.id}.png`}
 >
   <SiteHeader crumb={`Chapter ${num}`} />
   <div class="progress" role="presentation"><span class="progress-fill"></span></div>

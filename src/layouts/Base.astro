@@ -15,10 +15,17 @@ interface Props {
   description: string;
   /** Absolute path, used for the canonical URL. */
   path: string;
+  /** Absolute path to this page's Open Graph card. Defaults to the site one. */
+  image?: string;
 }
 
-const { title, description, path } = Astro.props;
+const { title, description, path, image } = Astro.props;
 const canonical = new URL(path, Astro.site);
+
+// A shared link with no image renders as an empty card, and the summary_large_image
+// hint below reserves the space whether or not there is anything to put in it.
+// The cards are committed under public/og; scripts/generate-og.mjs rebuilds them.
+const ogImage = new URL(image ?? '/og/default.png', Astro.site);
 ---
 <!doctype html>
 <html lang="en">
@@ -31,13 +38,20 @@ const canonical = new URL(path, Astro.site);
   <meta name="referrer" content="no-referrer" />
 
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Backend from First Principles" />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
   <meta property="og:url" content={canonical} />
+  <meta property="og:image" content={ogImage} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content={title} />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content={ogImage} />
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="sitemap" href="/sitemap-index.xml" />
+  <link rel="alternate" type="application/rss+xml" title="Backend from First Principles" href="/rss.xml" />
 
   <!-- Theme must resolve before first paint or the page flashes the wrong
        ground. Inline and blocking on purpose: it is ~15 lines. -->
