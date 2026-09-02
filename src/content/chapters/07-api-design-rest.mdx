@@ -203,10 +203,6 @@ Two clients GET the same record. A changes the email and saves. B (who never saw
 
 \# GET first, server returns a version tag ETag: "v7" # later, when writing back, echo the version you saw PATCH /v1/users/divyansh HTTP/1.1 If-Match: "v7" # if someone else already bumped it to "v8": HTTP/1.1 412 Precondition Failed &lt;- re-fetch, re-merge, retry
 
-______
-
-GoPython
-
 PATCH with optimistic-concurrency guard
 
 ```go
@@ -274,10 +270,6 @@ POST /v1/orders HTTP/1.1 Authorization: Bearer eyJhbGci... Content-Type: applica
 <Callout type="info" title="The non-idempotency danger / and the fix">
 Say you `POST /payments {amount: 5000}` and the network drops _after_ the server charged the card but _before_ the response reached you. You don't know if it worked, so you retry, and now you've charged INR 10,000. The standard fix is an **idempotency key**: the client sends a unique ID, the server records it with the result, and any retry carrying the same key returns the _original_ result instead of charging again. This is how Stripe and every serious payment API make POST safe to retry.
 </Callout>
-
-______
-
-GoPython
 
 making POST retry-safe with an idempotency key
 
@@ -377,10 +369,6 @@ Two params: `sortBy` (which field) and `sortOrder` (`ascending` / `descending`).
 ### Filtering
 
 Pass resource fields as query params to narrow the list: `?status=active`, or combine them: `?status=archived&name=org`. The server applies each as a filter on the result set.
-
-______
-
-GoPython
 
 list endpoint / page / sort / filter / sane defaults
 
@@ -521,10 +509,6 @@ Following the transcript's build: a project-management product (think Jira / Lin
 | Archive (custom)    | `POST /v1/organizations/:id/archive` | 200 / archived entity |
 
 Notice the symmetry: **list** and **create** share the collection URL (`/organizations`) and differ only by method, the server routes `GET` to the list handler and `POST` to the create handler. Likewise **get-one / update / delete** share `/organizations/:id` and differ only by method. The custom action appends a verb. `projects` would mirror this exactly, with `clone` as its custom action.
-
-______
-
-GoPython
 
 wiring the full resource / CRUD + custom action
 
@@ -683,10 +667,6 @@ Why each piece earns its place:
 <Callout type="info" title="Never leak internals">
 Don't return stack traces, SQL errors, file paths, or framework exception dumps to clients, they're useless to the consumer and a gift to attackers (they reveal your stack, schema, and structure). Log the gory details server-side against the `requestId`; return the clean envelope to the client. A `500` body should say "something went wrong, here's your request id", nothing more.
 </Callout>
-
-______
-
-GoPython
 
 one error helper, used everywhere
 
@@ -867,10 +847,6 @@ Reading the three diagrams together, here is the complete set of outcomes, every
 | _anything else_         | No route matches the method + path                         | **404**: default mux                                    |
 
 ### The complete program
-
-______
-
-Go
 
 task API / net/http / Go 1.22+
 

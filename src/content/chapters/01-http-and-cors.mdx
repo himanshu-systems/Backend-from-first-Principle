@@ -102,9 +102,9 @@ Every HTTP version kept the same request/response semantics but reworked **how t
 
 **TCP's own head-of-line blocking.** HTTP/2 removed it at the HTTP layer, but a deeper problem remained: because all streams share one TCP connection, a single lost TCP packet stalls _every_ stream until it's retransmitted, since TCP guarantees in-order delivery of the whole byte stream. **HTTP/3's QUIC** fixes this by running over UDP and implementing per-stream reliability itself: a lost packet only blocks the stream it belonged to. QUIC also folds the TLS handshake into the connection setup, so a secure connection establishes in fewer round trips (often zero on resumption).
 
-The one takeaway
-
+<Callout type="info" title="The one takeaway">
 Across every version the mental model is identical: **a client and server establish a connection, then messages flow back and forth.** The versions only optimize the plumbing, connection reuse, parallelism, compression, and which transport carries it all.
+</Callout>
 
 ## Anatomy of Messages & MIME Types
 
@@ -155,13 +155,9 @@ Since HTTP/1.0, the same protocol carries any kind of content, JSON, HTML, image
 | application/octet-stream          | Arbitrary "just bytes"; usually triggers a file download. |
 | text/event-stream                 | Server-Sent Events streaming (sec 17).                    |
 
-Universal ordering rule
-
+<Callout type="warn" title="Universal ordering rule">
 Headers go on the wire **before** the status line and body, the receiver reads them first to know how to interpret what follows. So once you've written the status code (Go's `w.WriteHeader()`) or started streaming the body, any further header you set is silently dropped: the bytes are already gone. The invariant in every framework is **set headers -> write status -> write body**. Forgetting it is the cause of the classic "my header isn't being sent" bug.
-
-______
-
-Go Python
+</Callout>
 
 ```go
 package main
@@ -262,10 +258,6 @@ Security headers are worth understanding individually, because each is a direct 
 
 Because these should apply to _every_ response, you set them once in middleware rather than per-handler, a single chokepoint that wraps the whole application:
 
-______
-
-Go Python
-
 ```go
 func securityHeaders(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -331,7 +323,9 @@ Every **safe** method is automatically **idempotent**: if a request changes noth
 
 \*POST and PATCH are cacheable only when the response explicitly includes freshness info and a matching `Content-Location`, rare in practice, so treat them as effectively non-cacheable.
 
-GET**Retrieve a representation of a resource** safeidempotentcacheable
+### GET · Retrieve a representation of a resource
+
+`safe` · `idempotent` · `cacheable`
 
 "Give me this resource." The workhorse of the read path.
 
@@ -343,13 +337,17 @@ GET should **only retrieve** data and carries no semantic meaning in a body, mos
 - Missing -> 404 Not Found.
 - Client's cached copy is still valid -> 304 Not Modified, empty body (sec 12).
 
-HEAD**Like GET, but headers only, no body** safeidempotentcacheable
+### HEAD · Like GET, but headers only, no body
+
+`safe` · `idempotent` · `cacheable`
 
 "Give me the metadata you'd send for a GET, but skip the payload."
 
 The server returns the exact same status and headers it would for a GET, including `Content-Length`, `Content-Type`, `ETag`, and `Last-Modified`, but omits the body entirely. This is useful when you want the metadata without paying for the download: **checking whether a resource exists** (200 vs 404), reading a file's size before deciding to fetch it, validating a cached copy's freshness, or running a cheap health check against a URL. Most frameworks implement HEAD automatically by routing it through the GET handler and discarding the generated body, which is why you rarely write a separate HEAD handler.
 
-POST**Submit data; create a resource or trigger processing** not safenot idempotentcond. cacheable
+### POST · Submit data; create a resource or trigger processing
+
+`not safe` · `not idempotent` · `cond. cacheable`
 
 "Here's some data, do something with it that changes state."
 
@@ -362,17 +360,21 @@ POST is the general-purpose state-changing verb: creating records, submitting fo
 - Validation failed -> 400 (the request was malformed) or 422 (well-formed but semantically invalid).
 - Business-rule clash, e.g. a duplicate username -> 409 Conflict.
 
-PUT**Replace the target resource entirely with the body** not safeidempotentnot cacheable
+### PUT · Replace the target resource entirely with the body
+
+`not safe` · `idempotent` · `not cacheable`
 
 "Make the resource at this URL look exactly like this body."
 
 PUT performs a **complete replacement**: the client supplies the full new representation of the resource and addresses a _specific_, known URL (usually one the client itself chose, like `/users/alice/avatar`). This is what makes it idempotent, sending the same full body ten times leaves the resource in the identical final state every time, because each request overwrites rather than accumulates. PUT can also create the resource if it doesn't yet exist (then return 201 Created) or replace an existing one (then 200 OK or 204 No Content).
 
-PUT vs POST for creation
-
+<Callout type="warn" title="PUT vs POST for creation">
 Use **POST** when the _server_ decides the new resource's identity: `POST /notes` and the server replies `Location: /notes/42`. Use **PUT** when the _client_ already knows the full target URL: `PUT /users/alice/settings`. The practical consequence: PUT-to-create is idempotent (retry-safe), POST-to-create is not (retry may duplicate). Choosing the right one is choosing whether retries are safe.
+</Callout>
 
-PATCH**Apply a partial modification to a resource** not safenot idempotent\*cond. cacheable
+### PATCH · Apply a partial modification to a resource
+
+`not safe` · `not idempotent*` · `cond. cacheable`
 
 "Change just these fields; leave everything else alone."
 
@@ -382,35 +384,39 @@ Where PUT replaces the whole resource, PATCH sends only a **set of changes**: e.
 **PATCH** for partial updates, **PUT** for full replacement. Many developers reach for PUT when they actually mean PATCH (and then have to send every field to avoid nulling them out). Default to PATCH unless you genuinely intend to overwrite the entire resource.
 </Callout>
 
-DELETE**Remove the target resource** not safeidempotentnot cacheable
+### DELETE · Remove the target resource
+
+`not safe` · `idempotent` · `not cacheable`
 
 "Delete this resource."
 
 DELETE is idempotent for a subtle but important reason: deleting once removes the resource, and deleting again changes nothing because it's already gone. The _responses_ may differ across attempts (the first returns 200/204, a repeat returns 404), but the _state of the server_, "this resource does not exist", is identical after one call or ten. That state-equivalence is exactly what idempotency means, which is why a client can safely retry a DELETE that timed out. Return 204 No Content when there's nothing to send back, or 200 with a body describing what was removed.
 
-OPTIONS**Describe the communication options for the target** safeidempotentnot cacheable
+### OPTIONS · Describe the communication options for the target
+
+`safe` · `idempotent` · `not cacheable`
 
 "What can I do with this resource?"
 
 OPTIONS asks the server which methods and headers a resource supports without acting on it; the server answers with an `Allow` header (e.g. `Allow: GET, POST, OPTIONS`). Its starring real-world role is the **CORS preflight** (sec 9): before a browser sends a "non-simple" cross-origin request, it automatically fires an OPTIONS to ask permission, and only proceeds if the server's response approves the method, headers, and origin. You almost never call OPTIONS by hand, but you'll see it constantly in the browser's Network tab paired with your real requests.
 
-CONNECT**Establish a tunnel through a proxy** not safenot idempotentnot cacheable
+### CONNECT · Establish a tunnel through a proxy
+
+`not safe` · `not idempotent` · `not cacheable`
 
 "Open a raw two-way tunnel to this host through you, proxy."
 
 CONNECT is used almost exclusively by **forward proxies handling HTTPS**. When a browser configured to use a proxy wants to reach an HTTPS site, it sends `CONNECT example.com:443` to the proxy, which opens a TCP tunnel to the destination and then blindly relays the encrypted bytes in both directions. Because the traffic inside is TLS-encrypted end-to-end, the proxy can't read or modify it, it just shovels bytes. You will essentially never implement CONNECT in an application server; it lives in proxy and infrastructure software (sec 18).
 
-TRACE**Loop-back diagnostic along the request path** safeidempotentnot cacheable
+### TRACE · Loop-back diagnostic along the request path
+
+`safe` · `idempotent` · `not cacheable`
 
 "Echo my request back so I can see what intermediaries changed."
 
 TRACE asks the server to echo the request it received, so the client can see exactly how proxies and gateways along the path modified the message, a debugging tool for the request chain. In practice it is **disabled almost everywhere**, because it enabled a class of attack called Cross-Site Tracing (XST) that could expose otherwise-hidden headers (like cookies) to malicious scripts. Most servers and frameworks reject TRACE outright. Know it exists for completeness; you won't use it.
 
 ### Wiring methods to handlers
-
-______
-
-Go Python
 
 ```go
 mux := http.NewServeMux()
@@ -470,9 +476,9 @@ The deeper issue is the **"unknown outcome" problem**: when a client sends a POS
 <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Without an idempotency key, a dropped response leads the client to retry a POST, charging the customer twice"><text x="120" y="24" font-size="13" font-weight="700" fill="var(--dg-accent)" text-anchor="middle">Client</text><text x="600" y="24" font-size="13" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">Server</text><line x1="120" y1="36" x2="120" y2="220" stroke="var(--dg-line)" stroke-width="2"></line><line x1="600" y1="36" x2="600" y2="220" stroke="var(--dg-line)" stroke-width="2"></line><line x1="120" y1="60" x2="598" y2="60" stroke="var(--dg-accent)" stroke-width="2" marker-end="url(#i1)"></line><text x="350" y="54" class="mono" font-size="11" font-weight="700" fill="var(--dg-accent-2)" text-anchor="middle">POST /charge ($50)</text><text x="615" y="78" font-size="11" fill="var(--dg-accent-2)" font-weight="700">charged once</text><line x1="600" y1="92" x2="360" y2="92" stroke="var(--dg-ink-3)" stroke-width="2" stroke-dasharray="4 3"></line><text x="455" y="86" class="mono" font-size="10.5" fill="var(--dg-ink-3)" text-anchor="middle">201 ...</text><text x="350" y="110" font-size="11" font-style="italic" fill="var(--dg-accent)" text-anchor="middle">response lost, client never learns it worked</text><line x1="120" y1="140" x2="598" y2="140" stroke="var(--dg-accent)" stroke-width="2.4" marker-end="url(#i1)"></line><text x="350" y="134" class="mono" font-size="11" font-weight="700" fill="var(--dg-accent-2)" text-anchor="middle">POST /charge ($50) &#x3C;- retried!</text><text x="615" y="158" font-size="11" fill="var(--dg-accent-2)" font-weight="700">charged AGAIN</text><rect x="150" y="178" width="440" height="40" rx="9" fill="var(--dg-accent-border)" stroke="var(--dg-accent-2)"></rect><text x="370" y="203" font-size="13" font-weight="700" fill="var(--dg-accent-2)" text-anchor="middle">$100 charged for one $50 purchase</text><defs><marker id="i1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 Z" fill="var(--dg-accent)"></path></marker></defs></svg>
 </Diagram>
 
-The fix: idempotency keys
-
+<Callout type="info" title="The fix: idempotency keys">
 The client generates a unique key (typically a UUID) for the _logical operation_ and sends it as an `Idempotency-Key` header. The server stores the key alongside the result of the first successful execution. If the same key ever arrives again, because the client retried, the server recognizes it and returns the **stored result** without re-running the work. The operation thus executes _at most once_ regardless of how many times it's submitted. (MDN now documents `Idempotency-Key` as a standardizing header, and payment APIs like Stripe popularized the pattern.)
+</Callout>
 
 1
 
@@ -501,10 +507,6 @@ Server sees the key already exists -> returns the stored result. **No second cha
 - **Store the key durably**: the in-memory maps below are for illustration; production uses Redis or a database table so the key survives restarts and is shared across all server instances (remember, any node may receive the retry, sec 1).
 - **Give keys a TTL**: expire stored keys after, say, 24 hours so the store doesn't grow without bound.
 - **Persist before responding**: record the result before sending it, so a crash between "did the work" and "saved the key" doesn't lose the dedup guarantee.
-
-______
-
-Go Python
 
 ```go
 var seen sync.Map // key -> []byte result. Use Redis with a TTL in production.
@@ -592,15 +594,11 @@ A common point of confusion: a JWT's header and payload are only **base64url-enc
 
 The answer is the third segment: the **signature**. It's computed as `HMAC(header + payload, secret)` (or a private-key equivalent) using a secret key that never leaves the server. When a tampered token comes back, the server recomputes the signature over the (now different) payload with that same secret; because the payload changed, the resulting hash is completely different from the one attached to the token. The comparison fails and the server rejects the request with 401, before the modified claim is ever trusted.
 
-Encoded is not encrypted
-
+<Callout type="warn" title="Encoded is not encrypted">
 Never put secrets in a JWT payload, anyone can read it. The signature only guarantees the payload wasn't _altered_ after issuance, not that it's confidential. Without the server's secret key, forging a valid signature for a modified payload is computationally infeasible.
+</Callout>
 
 On the protocol side, the `WWW-Authenticate` response header (paired with a 401) tells the client which authentication scheme to use, and `Authorization` is the request header that carries the credentials back.
-
-______
-
-Go Python
 
 ```go
 // Set a secure session cookie after login (stateful)
@@ -702,9 +700,9 @@ For anything riskier, the browser sends a preliminary "may I?" request first. It
 - The request carries a non-simple header, most commonly `Authorization` or any custom `X-` header.
 - The `Content-Type` is outside the simple set, and `application/json` is outside it.
 
-Why you see OPTIONS everywhere
-
+<Callout type="warn" title="Why you see OPTIONS everywhere">
 Since a typical authenticated JSON API request hits _all three_ triggers (JSON body, Authorization header, often a non-GET method), **nearly every real API call is preflighted**. That's why your Network tab shows a paired `OPTIONS` request immediately before each actual call, it's not a bug, it's the browser asking permission.
+</Callout>
 
 1
 
@@ -723,10 +721,6 @@ v
 Approval granted -> the browser sends the actual request and returns the real response to the page.
 
 One extra wrinkle for **credentialed** requests (those carrying cookies): the server must also send `Access-Control-Allow-Credentials: true`, and in that mode it may _not_ use the `*` wildcard for the origin, it has to name the exact origin. This prevents a server from accidentally exposing authenticated data to any site.
-
-______
-
-Go Python
 
 ```go
 func cors(next http.Handler) http.Handler {
@@ -766,9 +760,9 @@ A frequent question is: "if a script can just ignore CORS with `curl` or a custo
 
 When a tool like `curl` or a custom script ignores CORS, it can read whatever the server returns, but it doesn't have the user's cookies or session tokens, so the server simply rejects it as unauthenticated (sec 8). CORS instead enforces the Same-Origin Policy inside _legitimate browsers_: if a user is logged into their bank and visits a malicious site, that site's JavaScript runs inside the user's own browser, which automatically attaches the bank's session cookie to any request it fires. CORS is the mechanism by which the browser asks the bank "does this malicious origin have permission to read this response?", and blocks the response when the answer is no.
 
-Who protects what
-
+<Callout type="info" title="Who protects what">
 The server protects itself through authentication, authorization, and CSRF tokens. CORS protects the user's already-trusted, cookie-carrying session from being read by an origin it never agreed to share it with.
+</Callout>
 
 #### The threat of malicious extensions
 
@@ -825,9 +819,9 @@ A three-digit status code is a **standardized, machine-readable verdict** on a r
 | 503  | Service Unavailable    | Temporarily down/overloaded/maintenance; include `Retry-After`.                                                                |
 | 504  | Gateway Timeout        | A proxy waited for the upstream and gave up.                                                                                   |
 
-401 vs 403, the most common mix-up
-
+<Callout type="warn" title="401 vs 403, the most common mix-up">
 **401 Unauthorized** actually means _unauthenticated_, "I don't know who you are; send credentials." **403 Forbidden** means _authenticated but unauthorized_, "I know exactly who you are, and you're still not allowed." A logged-in user hitting an admin-only endpoint gets 403, not 401. Naming the right one lets the client react correctly: 401 -> show the login screen; 403 -> show "access denied."
+</Callout>
 
 <Callout type="info" title="400 vs 422">
 **400** is for requests the server can't even parse, broken JSON, malformed encoding. **422** is for requests that parse perfectly but are semantically invalid, a well-formed JSON object whose `email` field contains a phone number. FastAPI returns 422 for its automatic validation failures; many APIs use 400 for both, but the distinction helps clients tell "fix your syntax" from "fix your data."
@@ -836,10 +830,6 @@ A three-digit status code is a **standardized, machine-readable verdict** on a r
 <Callout type="info" title="5xx and the proxy trio">
 5xx means the server failed to honor a valid request, so a 500 in your logs is _your_ bug, not the client's. But **502 / 503 / 504** are special: you rarely emit them from application code. They're generated by the **proxy or load balancer in front of you** (nginx, Envoy, a cloud LB) when it can't reach your app, finds it down, or waits too long. Seeing them points at infrastructure and upstream health, not your handler logic, a vital triage shortcut.
 </Callout>
-
-______
-
-Go Python
 
 ```go
 func getUser(w http.ResponseWriter, r *http.Request) {
@@ -891,13 +881,9 @@ A redirect lets one resource live at more than one URL: the server responds with
 | 307 Temporary Redirect | No         | **Yes**: method & body kept                 | Temporary redirect that must re-issue the same POST/PUT with its body intact.                             |
 | 308 Permanent Redirect | Yes        | **Yes**: method & body kept                 | Permanent move that must preserve a POST/PUT.                                                             |
 
-The historical trap that explains 307/308
-
+<Callout type="warn" title="The historical trap that explains 307/308">
 Early clients, faced with a 301 or 302 on a POST, would silently re-issue it as a **GET and drop the body**: technically a spec violation, but so widespread it became expected behavior. That ambiguity ("will my POST survive this redirect?") is precisely why **307** and **308** were created: they _guarantee_ the method and body are preserved. So if a redirected form submission mysteriously arrives with no data, you used 301/302 where you needed 308/307. Conversely, 303 deliberately forces a GET, which is exactly what you want for Post/Redirect/Get, so the user can safely refresh the result page.
-
-______
-
-Go Python
+</Callout>
 
 ```go
 // Permanent move that must keep the method/body -> 308
@@ -975,10 +961,6 @@ Unchanged -> 304 Not Modified with an empty body. The client reuses its copy; th
 Changed -> 200 with the new body and a fresh ETag.
 
 ETags come in two flavors: a **strong** ETag (`"abc"`) guarantees byte-for-byte identity, while a **weak** one (`W/"abc"`) only promises semantic equivalence, useful when, say, a timestamp in the response differs but the meaningful content doesn't.
-
-______
-
-Go Python
 
 ```go
 func getResource(w http.ResponseWriter, r *http.Request) {
@@ -1058,13 +1040,9 @@ Still v1 -> apply the update, return 200 + the new `ETag: "v2"`.
 
 Someone already bumped it to v2 -> reject with 412 Precondition Failed. No lost update, the client refetches v2, reapplies its change, and retries.
 
-Why this beats a database lock
-
+<Callout type="info" title="Why this beats a database lock">
 A pessimistic lock would hold a row locked the entire time a user stares at an edit form, potentially minutes, blocking everyone else and risking deadlocks if the user wanders off. Optimistic concurrency holds _nothing_: it lets all readers proceed and detects conflict only at the instant of writing, cheaply, by comparing a version tag. The cost is that an occasional save fails and must be retried, which is almost always a better trade. This is how collaborative editors, wikis, and well-designed REST APIs prevent silent overwrites.
-
-______
-
-Go Python
+</Callout>
 
 ```go
 func updateDoc(w http.ResponseWriter, r *http.Request) {
@@ -1123,10 +1101,6 @@ Preferences can be **weighted** with quality values from 0 to 1: `Accept: applic
 ### Compression: the same negotiation, applied to size
 
 Compression is just encoding negotiation. When the client advertises `Accept-Encoding: gzip`, the server may compress a text response before sending, and the savings on JSON, HTML, and JS are dramatic, since they're highly repetitive: a \~26 MB JSON payload can shrink to \~3.8 MB. The server sets `Content-Encoding: gzip`, the browser transparently decompresses, and the application code on both ends is none the wiser. Two rules matter: only compress when the client said it can decode (else you send garbage), and **always pair with `Vary: Accept-Encoding`** so a shared cache doesn't serve the compressed body to a client that can't handle it (sec 12).
-
-______
-
-Go Python
 
 ```go
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -1188,10 +1162,6 @@ Content-Length: 48977
 
 The good news for implementers: the standard file-serving helpers in both ecosystems handle all of this, range parsing, 206, 416, and `If-Range`, automatically. You rarely hand-roll it.
 
-______
-
-Go Python
-
 ```go
 // http.ServeContent handles Range, 206, 416 and If-Range for you,
 // driven by the file's modtime and an optional ETag.
@@ -1230,10 +1200,6 @@ Establishing a TCP connection isn't free, it costs a full round trip for the han
 <Callout type="info" title="Where this matters for you">
 You rarely set these headers by hand, the defaults are right for almost everything. Persistent connections become a real concern when you're **tuning server timeouts**: hold connections too long and you leak idle ones and exhaust the connection pool under load; close them too eagerly and you lose the latency benefit. The timeouts below also double as a defense, a too-generous read timeout lets a Slowloris attacker tie up connections by sending headers one byte at a time.
 </Callout>
-
-______
-
-Go Python
 
 ```go
 srv := &http.Server{
@@ -1284,10 +1250,6 @@ Content-Type: image/png
 
 To send a large or open-ended response without buffering it all in memory (or timing out while you build it), the server **streams** it in pieces. Two related techniques: `Transfer-Encoding: chunked` sends the body as a series of self-describing chunks when the total size isn't known up front (so there's no `Content-Length`); and `Content-Type: text/event-stream` implements **Server-Sent Events**, a long-lived response over which the server pushes labelled `data:` events as they occur. The connection is held open with keep-alive, and the client appends each chunk as it arrives, ideal for progress updates, log tails, or token-by-token LLM output.
 
-______
-
-Go Python
-
 ```go
 // 1. Receive a multipart upload
 func upload(w http.ResponseWriter, r *http.Request) {
@@ -1335,9 +1297,9 @@ async def stream():
     return StreamingResponse(gen(), media_type="text/event-stream")
 ```
 
-Direction -> tool
-
+<Callout type="info" title="Direction -> tool">
 **Sending big data up** -> `multipart/form-data`.  **Receiving big data down** -> chunked transfer or `text/event-stream` with keep-alive.  **Partial / resumable** transfers -> range requests (sec 15).  **Two-way realtime** -> WebSockets (sec 19).
+</Callout>
 
 Part VI / Security & Operations
 
@@ -1366,9 +1328,9 @@ Once a reverse proxy forwards a request to your app, the TCP connection your han
 | Forwarded         | The standardized single header (RFC 7239) combining the above.              |
 | Via               | The proxies/gateways a message traversed, for loop detection and tracing.   |
 
-Two traps that bite everyone
-
+<Callout type="warn" title="Two traps that bite everyone">
 **Spoofing:** `X-Forwarded-For` is just a header a client can set, so if you use it for rate-limiting, geolocation, or audit logs, you must only trust it when the request arrived from a _known, trusted proxy IP_, otherwise an attacker forges any IP they like. **Wrong-scheme URLs:** if you build absolute or redirect URLs from the local connection's scheme (which is http behind the proxy) instead of honoring `X-Forwarded-Proto`, you'll generate `http://` links on an HTTPS site, causing mixed-content warnings and redirect loops. Most frameworks ship "trusted proxy" middleware that rewrites `RemoteAddr` and scheme correctly from these headers; enable it rather than reading the headers raw.
+</Callout>
 
 ## Protocol Upgrade & WebSockets
 
@@ -1435,10 +1397,6 @@ A practical detail worth knowing: **SNI** (Server Name Indication) is the part o
 <Callout type="info" title="Where TLS actually lives in your stack">
 You almost never implement TLS in application code. It's _terminated_ at the edge, by your hosting platform, load balancer, or reverse proxy (nginx, Caddy, a cloud LB), frequently with certificates auto-provisioned and renewed via Let's Encrypt. Your app then receives plain HTTP behind that boundary. This is exactly why `X-Forwarded-Proto` (sec 18) matters, it's how your app learns the user was on HTTPS, and why you set `Strict-Transport-Security` (sec 5) at the edge to force HTTPS in the first place.
 </Callout>
-
-______
-
-Go Python
 
 ```go
 // Serve HTTPS directly with a certificate + private-key pair.

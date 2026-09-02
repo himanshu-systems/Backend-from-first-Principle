@@ -27,9 +27,9 @@ Polling is calling the post office every ten minutes to ask if mail arrived. A W
 <svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Left: repeated polling requests mostly returning empty. Right: one persistent WebSocket connection over which the server pushes immediately when an event occurs"><text x="180" y="22" class="mono" font-size="11" font-weight="700" fill="var(--dg-accent-2)" text-anchor="middle">POLLING, ask over and over</text><rect x="40" y="36" width="80" height="28" rx="6" fill="var(--dg-accent-border)" stroke="var(--dg-accent-2)"></rect><text x="80" y="55" font-size="9.5" fill="var(--dg-accent-2)" text-anchor="middle">client</text><rect x="250" y="36" width="80" height="28" rx="6" fill="var(--dg-accent-border)" stroke="var(--dg-accent-2)"></rect><text x="290" y="55" font-size="9.5" fill="var(--dg-accent-2)" text-anchor="middle">server</text><defs><marker id="pa1" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0 0 L5 2.5 L0 5 Z" fill="var(--dg-accent-2)"></path></marker></defs><g class="mono" font-size="8" fill="var(--dg-accent-2)"><path d="M120 78 H248" stroke="var(--dg-accent-2)" stroke-width="1" marker-end="url(#pa1)"></path><text x="184" y="74" text-anchor="middle" fill="var(--dg-ink)">any new? </text><path d="M250 92 H122" stroke="var(--dg-line)" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#pa1)"></path><text x="186" y="104" text-anchor="middle" fill="var(--dg-ink-3)">no</text><path d="M120 118 H248" stroke="var(--dg-accent-2)" stroke-width="1" marker-end="url(#pa1)"></path><text x="184" y="114" text-anchor="middle" fill="var(--dg-ink)">any new? </text><path d="M250 132 H122" stroke="var(--dg-line)" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#pa1)"></path><text x="186" y="144" text-anchor="middle" fill="var(--dg-ink-3)">no</text><path d="M120 158 H248" stroke="var(--dg-accent-2)" stroke-width="1" marker-end="url(#pa1)"></path><text x="184" y="154" text-anchor="middle" fill="var(--dg-ink)">any new? </text><path d="M250 172 H122" stroke="var(--dg-ok)" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#pa1)"></path><text x="186" y="184" text-anchor="middle" fill="var(--dg-ok)">finally!</text></g><text x="180" y="208" font-size="10" font-style="italic" fill="var(--dg-accent-2)" text-anchor="middle">wasted requests / latency up to one interval</text><line x1="360" y1="30" x2="360" y2="220" stroke="var(--dg-line)" stroke-dasharray="4 4"></line><text x="545" y="22" class="mono" font-size="11" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">WEBSOCKET, one open pipe</text><rect x="420" y="36" width="80" height="28" rx="6" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="460" y="55" font-size="9.5" fill="var(--dg-ok)" text-anchor="middle">client</text><rect x="620" y="36" width="80" height="28" rx="6" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="660" y="55" font-size="9.5" fill="var(--dg-ok)" text-anchor="middle">server</text><line x1="460" y1="64" x2="460" y2="200" stroke="var(--dg-ok)" stroke-width="3"></line><line x1="660" y1="64" x2="660" y2="200" stroke="var(--dg-ok)" stroke-width="3"></line><text x="560" y="80" class="mono" font-size="8.5" fill="var(--dg-ok)" text-anchor="middle">connection stays open</text><defs><marker id="pa2" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0 0 L5 2.5 L0 5 Z" fill="var(--dg-ok)"></path></marker></defs><g class="mono" font-size="8" fill="var(--dg-ok)"><path d="M658 120 H462" stroke="var(--dg-ok)" stroke-width="1.2" marker-end="url(#pa2)"></path><text x="560" y="114" text-anchor="middle" fill="var(--dg-ink)">event 1 v (pushed instantly)</text><path d="M462 150 H658" stroke="var(--dg-accent-2)" stroke-width="1.2" marker-end="url(#pa2)"></path><text x="560" y="144" text-anchor="middle" fill="var(--dg-accent-2)">client sends too</text><path d="M658 180 H462" stroke="var(--dg-ok)" stroke-width="1.2" marker-end="url(#pa2)"></path><text x="560" y="174" text-anchor="middle" fill="var(--dg-ink)">event 2 v</text></g><text x="540" y="212" font-size="10" font-style="italic" fill="var(--dg-ok)" text-anchor="middle">zero polling / near-zero latency / both directions</text></svg>
 </Diagram>
 
-The one idea
-
+<Callout type="info" title="The one idea">
 HTTP can't let the server initiate. WebSockets establish a **single, long-lived, full-duplex connection** so _either_ side can send a message at _any_ time, with no per-message request overhead and no polling delay. Everything else is how that pipe is opened, framed, managed, and scaled.
+</Callout>
 
 ## The Real-Time Spectrum
 
@@ -46,9 +46,9 @@ WebSockets aren't the only way to get server-to-client updates, and reaching for
 | **SSE**           | server -> client | A single long-lived HTTP response streaming text events                  | One-way server push (feeds, notifications), simpler than WS                |
 | **WebSocket**     | both ways        | Persistent full-duplex connection upgraded from HTTP                     | True bidirectional, low-latency interaction (chat, games, collaboration)   |
 
-Don't reach for WebSockets by default
-
+<Callout type="warn" title="Don't reach for WebSockets by default">
 WebSockets are the most capable option _and_ the most operationally demanding, persistent stateful connections that complicate scaling, load balancing, and deployment (Parts III-IV). If you only need the _server_ to push to the client (a live feed, notifications, progress), **SSE** is dramatically simpler: it's just HTTP, it auto-reconnects, and it sails through proxies. Use the full duplex of WebSockets only when the client genuinely needs to send frequently too (sec 18).
+</Callout>
 
 ## What a WebSocket Actually Is
 
@@ -115,9 +115,9 @@ After the handshake, data doesn't flow as a raw byte stream, it's chopped into *
 - **Masking is mandatory client->server, forbidden server->client.** Browsers XOR-mask every frame they send with a random key. This isn't encryption (use `wss://` for that, sec 14); it's a _security mitigation_ so a malicious page can't craft bytes that confuse old intermediary proxies into mis-parsing the stream as something else (cache poisoning). Server frames are never masked. Libraries handle this automatically.
 - **Fragmentation.** A large message can be split into a sequence of frames (FIN=0 on all but the last, opcode `0x0` continuation on the middle ones), letting senders stream without buffering the whole thing first.
 
-Message boundaries are preserved, unlike raw TCP
-
+<Callout type="warn" title="Message boundaries are preserved, unlike raw TCP">
 A key convenience over raw TCP: WebSockets are _message_-oriented, not byte-stream-oriented. You send a message and the other side receives _that message_ whole, not an arbitrary chunk of a byte stream you have to re-delimit yourself. Framing does the delimiting. (Under the hood it's still TCP, so the bytes are ordered and reliable, you just get message boundaries on top.)
+</Callout>
 
 ## The Connection Lifecycle
 
@@ -135,9 +135,9 @@ A WebSocket has a clear life: **open -> exchange messages -> close**, with event
 | `1011`        | Internal server error                                                                                          |
 | `1008 / 1009` | Policy violation / message too big                                                                             |
 
-Connections die silently, plan for 1006
-
+<Callout type="warn" title="Connections die silently, plan for 1006">
 The clean close handshake only happens when both sides cooperate. In reality connections drop ungracefully all the time, a laptop sleeps, Wi-Fi flaps, a phone switches networks, a NAT times out, and you get _no_ close frame, just a dead socket (code `1006` or a read error, often noticed only much later). You cannot rely on a clean close to detect a gone client. That's exactly why heartbeats exist (sec 7) and why clients must reconnect (sec 17).
+</Callout>
 
 ## Ping/Pong & Heartbeats
 
@@ -147,19 +147,15 @@ Because a dead connection often looks identical to an idle one (no bytes either 
 <svg viewBox="0 0 720 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Server pinging a client which pongs back twice, then a third ping gets no pong within the deadline and the server declares the connection dead and cleans up"><rect x="40" y="60" width="120" height="40" rx="9" fill="var(--dg-ok)"></rect><text x="100" y="84" font-size="11" font-weight="700" fill="var(--dg-on-accent)" text-anchor="middle">server</text><rect x="560" y="60" width="120" height="40" rx="9" fill="var(--dg-accent)"></rect><text x="620" y="84" font-size="11" font-weight="700" fill="var(--dg-on-accent)" text-anchor="middle">client</text><defs><marker id="hb" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--dg-ok)"></path></marker><marker id="hb2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--dg-accent)"></path></marker></defs><g class="mono" font-size="9"><path d="M160 50 H558" stroke="var(--dg-ok)" stroke-width="1.2" marker-end="url(#hb)"></path><text x="360" y="45" fill="var(--dg-ok)" text-anchor="middle">ping -></text><path d="M558 66 H162" stroke="var(--dg-accent)" stroke-width="1.2" marker-end="url(#hb2)"></path><text x="360" y="78" fill="var(--dg-accent)" text-anchor="middle">&#x3C;- pong ✓</text><path d="M160 96 H558" stroke="var(--dg-ok)" stroke-width="1.2" marker-end="url(#hb)"></path><text x="360" y="91" fill="var(--dg-ok)" text-anchor="middle">ping -></text><path d="M558 112 H162" stroke="var(--dg-accent)" stroke-width="1.2" marker-end="url(#hb2)"></path><text x="360" y="124" fill="var(--dg-accent)" text-anchor="middle">&#x3C;- pong ✓</text><path d="M160 142 H420" stroke="var(--dg-ok)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#hb)"></path><text x="290" y="137" fill="var(--dg-ok)" text-anchor="middle">ping -></text></g><text x="500" y="146" font-size="10" font-weight="700" fill="var(--dg-accent-2)">no pong in time -> close + clean up</text></svg>
 </Diagram>
 
-Always run heartbeats
-
+<Callout type="info" title="Always run heartbeats">
 A real-time server without heartbeats slowly fills with **zombie connections**: clients that vanished but whose sockets the server still holds, leaking memory and goroutines/tasks (sec 19). Set a ping interval and a pong deadline, drop connections that miss it, and free their resources. It's not optional for production; it's how you keep the connection table honest.
+</Callout>
 
 Part III / Building It
 
 ## A WebSocket Server
 
 A server endpoint does three things: accept the upgrade (sec 4), then run a loop reading messages and a way to write them. In Go the standard library doesn't ship a WebSocket implementation, so you use a library, `gorilla/websocket` (the long-time standard) or `coder/websocket` (`nhooyr`). In Python, frameworks like FastAPI/Starlette expose WebSockets directly, and the `websockets` library is the standalone standard. Here is a minimal echo server, the "hello world" of WebSockets.
-
-______
-
-● Go● Python
 
 ```go
 // github.com/gorilla/websocket
@@ -218,17 +214,13 @@ async def ws_handler(ws: WebSocket):
 
 Go gives each connection a goroutine running a blocking read loop; Python gives each connection an async coroutine awaiting messages. Same structure, accept, loop reading, write, expressed in each language's concurrency model.
 
-The read loop and the write must be coordinated
-
+<Callout type="warn" title="The read loop and the write must be coordinated">
 A subtle but critical rule (especially in Go with gorilla): **concurrent writes to one connection are not safe**, and you typically want one goroutine reading and another writing. The standard pattern is a dedicated _writer_ goroutine fed by a channel, so all writes are serialized. Don't write to the same connection from multiple goroutines without synchronization, it corrupts the frame stream. The hub pattern (sec 10) builds exactly this structure.
+</Callout>
 
 ## A WebSocket Client
 
 A backend is often a WebSocket _client_ too, consuming a real-time feed from another service, bridging systems, or in tests. The client side: dial the `ws://`/`wss://` URL (which does the handshake), then read and write messages. The shape mirrors the server.
-
-______
-
-● Go● Python
 
 ```go
 // github.com/gorilla/websocket
@@ -293,10 +285,6 @@ One connection is trivial; the real work is managing _many_. A server holding th
 <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A hub in the center connected to a register channel, an unregister channel, a broadcast channel, and a set of client connections each with its own send queue"><rect x="280" y="74" width="160" height="56" rx="12" fill="var(--dg-inverse)"></rect><text x="360" y="98" font-size="13" font-weight="700" fill="var(--dg-on-inverse)" text-anchor="middle">Hub</text><text x="360" y="116" class="mono" font-size="8.5" fill="var(--dg-on-inverse)" text-anchor="middle">owns clients&#123;&#125; set</text><defs><marker id="hb10" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--dg-accent-2)"></path></marker></defs><rect x="40" y="30" width="150" height="30" rx="7" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="115" y="50" font-size="9.5" fill="var(--dg-ok)" text-anchor="middle">register (new conn)</text><rect x="40" y="88" width="150" height="30" rx="7" fill="var(--dg-accent-surface)" stroke="var(--dg-accent)"></rect><text x="115" y="108" font-size="9.5" fill="var(--dg-accent-2)" text-anchor="middle">unregister (gone)</text><rect x="40" y="146" width="150" height="30" rx="7" fill="var(--dg-info-surface)" stroke="var(--dg-ok)"></rect><text x="115" y="166" font-size="9.5" fill="var(--dg-ok)" text-anchor="middle">broadcast (message)</text><path d="M190 45 C230 52 250 78 278 88" stroke="var(--dg-accent-2)" stroke-width="1.4" fill="none" marker-end="url(#hb10)"></path><path d="M190 103 H278" stroke="var(--dg-accent-2)" stroke-width="1.4" marker-end="url(#hb10)"></path><path d="M190 161 C230 154 250 126 278 116" stroke="var(--dg-accent-2)" stroke-width="1.4" fill="none" marker-end="url(#hb10)"></path><rect x="540" y="34" width="150" height="30" rx="7" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="615" y="54" font-size="9" fill="var(--dg-warn-2)" text-anchor="middle">client A + send queue</text><rect x="540" y="86" width="150" height="30" rx="7" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="615" y="106" font-size="9" fill="var(--dg-warn-2)" text-anchor="middle">client B + send queue</text><rect x="540" y="138" width="150" height="30" rx="7" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="615" y="158" font-size="9" fill="var(--dg-warn-2)" text-anchor="middle">client C + send queue</text><g stroke="var(--dg-warn)" stroke-width="1.4" fill="none"><path d="M440 92 C490 70 510 58 538 50" marker-end="url(#hb10)"></path><path d="M440 102 H538" marker-end="url(#hb10)"></path><path d="M440 112 C490 134 510 146 538 153" marker-end="url(#hb10)"></path></g><text x="360" y="190" class="serif" font-size="11.5" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">All access to the connection set goes through the hub, one owner, no data races.</text></svg>
 </Diagram>
 
-______
-
-● Go● Python
-
 ```go
 type Hub struct {
     clients    map[*Client]bool
@@ -359,9 +347,9 @@ hub = Hub()
 #  it while iterating, collect dead ones, remove after.)
 ```
 
-Concurrency & cleanup are the whole game
-
+<Callout type="warn" title="Concurrency &amp; cleanup are the whole game">
 Two things separate a toy from a real server. **Concurrency safety**: never touch the shared connection set from many goroutines/tasks without coordination (Go: one owner goroutine + per-client send channel; Python asyncio: single-threaded, but don't mutate while iterating). **Cleanup**: every path that ends a connection must remove it from the registry and free its resources, or you leak (sec 19). Register on connect, _always_ unregister on disconnect, including error and panic paths.
+</Callout>
 
 ## Broadcasting & Rooms
 
@@ -389,9 +377,9 @@ The standard implementation (visible in the hub of sec 10): give each client a _
 - **Disconnect the client**: for data where gaps are unacceptable, close the slow connection and let it reconnect and re-sync (sec 17). Better to drop one client than degrade all.
 - **Conflate / batch**: collapse multiple pending updates into one (send the latest snapshot rather than every intermediate step).
 
-A bounded buffer is non-negotiable
-
+<Callout type="info" title="A bounded buffer is non-negotiable">
 The cardinal rule of push systems: **never buffer unboundedly per connection.** Every client gets a fixed-size queue and an explicit overflow policy (drop, disconnect, or conflate). This is the real-time analogue of Kafka's slow-consumer handling and the backpressure concerns in any streaming system, one slow consumer must never be able to take down the producer.
+</Callout>
 
 Part IV / Production
 
@@ -406,10 +394,6 @@ Authenticating a WebSocket is trickier than a normal request because of a browse
 | **Subprotocol field**     | Smuggle the token in `Sec-WebSocket-Protocol`                | Avoids the URL; a common JWT-over-WS trick                                              |
 | **First message**         | Connect, then send an auth message before anything else      | Flexible; the server must reject/close if auth doesn't arrive promptly                  |
 | **Header (non-browser)**  | Backend clients _can_ set `Authorization` (sec 9)            | Cleanest, but only for non-browser clients                                              |
-
-______
-
-● Go● Python
 
 ```go
 func wsHandler(w http.ResponseWriter, r *http.Request) {
@@ -442,9 +426,9 @@ async def ws_handler(ws: WebSocket):
     await serve(ws, user)                          # messages are tied to `user`
 ```
 
-Authorize on every message, not just at connect
-
+<Callout type="warn" title="Authorize on every message, not just at connect">
 Authentication at the handshake establishes _who_ the connection belongs to. But a long-lived socket outlives a single action, so you must still **authorize each message** against what that user is allowed to do (can they post to _this_ room? send _this_ command?), the same authz-on- every-action rule as REST. Also consider that a token can _expire_ mid-connection: long sessions need a re-auth or token-refresh strategy, or you'll have a connection authenticated by a credential that's no longer valid.
+</Callout>
 
 ## Security
 
@@ -459,9 +443,9 @@ WebSockets inherit the web's threat model plus a few of their own. The security 
 | **Rate-limit**                 | A persistent connection can flood you with messages; rate-limit per connection/user to prevent abuse and accidental loops.                                                                                                                                                    |
 | **Bound connections per user** | Limit concurrent connections per identity so one client can't open thousands and exhaust the connection table (sec 19).                                                                                                                                                       |
 
-The default `CheckOrigin` is a trap
-
+<Callout type="warn" title="The default CheckOrigin is a trap">
 The single most common WebSocket security hole: leaving origin checking disabled. Gorilla's default `CheckOrigin` rejects cross-origin requests, but countless tutorials tell you to override it with `return true`, which opens you to Cross-Site WebSocket Hijacking for any cookie-authenticated endpoint. **Always allowlist the specific origins you trust** (as in the sec 8 server), never blanket-allow. If you authenticate with bearer tokens rather than cookies the risk is lower, but origin validation is still the right default.
+</Callout>
 
 ## Scaling: the Backplane
 
@@ -477,9 +461,9 @@ The solution is a **backplane** (a.k.a. pub/sub adapter): an external message sy
 - **Kafka**: when you also want durability, replay, and the events to feed other systems (the Kafka chapter): publish events to a topic, every WS instance consumes and forwards. Heavier, but the messages become part of your durable event stream.
 - **NATS** / cloud pub/sub, other fast messaging options with similar mechanics.
 
-The mental shift: instances are interchangeable, the bus coordinates
-
+<Callout type="info" title="The mental shift: instances are interchangeable, the bus coordinates">
 The backplane turns "N servers each with their own islands of connections" into "N servers that collectively behave as one." It's the same decoupling idea as the Kafka chapter applied to live delivery: a publisher doesn't need to know which instance hosts a recipient, it publishes, and whoever holds the connection delivers. You cannot horizontally scale WebSockets without something playing this role; designing it in early is far easier than retrofitting it.
+</Callout>
 
 ## Load Balancing & Sticky Sessions
 
@@ -489,9 +473,9 @@ Putting a load balancer in front of WebSocket servers has its own wrinkles, beca
 - **Sticky sessions / affinity.** Once a client is connected to instance 1, all its frames must keep going to instance 1 (that's where its socket lives). With raw TCP that's automatic (one connection = one backend), but reconnections and any per-message routing want _session affinity_ so a client returns to a consistent instance. With a backplane (sec 15) affinity matters less for _delivery_ (any instance can publish/receive), but it still affects local state.
 - **Connection draining on deploy.** The big one: deploying a new version (the rolling updates of chapter 21 sec 18) _terminates instances_, and every WebSocket on a terminating instance drops. You must drain gracefully, stop accepting new connections, send a close frame (code `1001` "going away") so clients reconnect cleanly to a healthy instance, and allow time before `SIGKILL` (graceful shutdown chapter). Even so, a deploy causes a reconnection storm, which is why robust client reconnection (sec 17) is mandatory.
 
-Every deploy disconnects everyone
-
+<Callout type="warn" title="Every deploy disconnects everyone">
 Unlike stateless HTTP, where a rolling deploy is invisible, rolling a WebSocket fleet drops every live connection as old instances retire. This is fundamental to stateful connections, not a bug. Plan for it: graceful drain with `1001` on the server, exponential-backoff reconnection with jitter on the client (sec 17, to avoid a thundering-herd reconnect), and message design that tolerates a brief gap and re-sync. Treat reconnection as the normal case, not the exception.
+</Callout>
 
 ## Reconnection & Resilience
 
@@ -508,9 +492,9 @@ Given everything above, connections drop silently (sec 6), deploys disconnect ev
 - **Decide your delivery guarantee.** Like Kafka (sec 9), WebSocket delivery isn't magically exactly-once. For critical data, give messages sequence numbers/IDs so the client can detect gaps and duplicates, and make handling idempotent. For lossy data (live positions), a gap is fine, the next update corrects it.
 - **Buffer outbound on the client** while disconnected (within limits), and flush on reconnect, so a user's action taken during a blip isn't simply lost.
 
-Reconnection is a first-class feature
-
+<Callout type="info" title="Reconnection is a first-class feature">
 The connection dropping is _normal operation_, not an error case, so reconnection logic isn't a nice-to-have, it's core functionality you build and test deliberately. A real-time system's reliability is mostly determined by how gracefully it handles the constant churn of connections coming and going. Design for the drop.
+</Callout>
 
 Part V / Practice & Comparison
 
@@ -529,9 +513,9 @@ The decision that should come _before_ you build anything real-time. WebSockets 
 <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A comparison grid of polling, SSE, WebSocket and gRPC streaming across direction and browser support"><g font-family="var(--font-diagram-mono)" font-size="9.5"><rect x="20" y="30" width="165" height="150" rx="11" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="102" y="52" font-size="11.5" font-weight="700" fill="var(--dg-warn)" text-anchor="middle">Polling</text><text x="102" y="78" fill="var(--dg-ink-2)" text-anchor="middle">dir: client pull</text><text x="102" y="100" fill="var(--dg-ok)" text-anchor="middle">browser: yes</text><text x="102" y="122" fill="var(--dg-ink-2)" text-anchor="middle">latency: high</text><text x="102" y="144" fill="var(--dg-ok)" text-anchor="middle">complexity: tiny</text><text x="102" y="166" fill="var(--dg-ink-2)" text-anchor="middle">stateless</text><rect x="195" y="30" width="165" height="150" rx="11" fill="var(--dg-info-surface)" stroke="var(--dg-ok)"></rect><text x="277" y="52" font-size="11.5" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">SSE</text><text x="277" y="78" fill="var(--dg-ink-2)" text-anchor="middle">dir: server->client</text><text x="277" y="100" fill="var(--dg-ok)" text-anchor="middle">browser: yes</text><text x="277" y="122" fill="var(--dg-ok)" text-anchor="middle">latency: low</text><text x="277" y="144" fill="var(--dg-ok)" text-anchor="middle">complexity: low</text><text x="277" y="166" fill="var(--dg-ok)" text-anchor="middle">auto-reconnect</text><rect x="370" y="30" width="165" height="150" rx="11" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="452" y="52" font-size="11.5" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">WebSocket</text><text x="452" y="78" fill="var(--dg-ok)" text-anchor="middle">dir: both ways</text><text x="452" y="100" fill="var(--dg-ok)" text-anchor="middle">browser: yes</text><text x="452" y="122" fill="var(--dg-ok)" text-anchor="middle">latency: lowest</text><text x="452" y="144" fill="var(--dg-accent-2)" text-anchor="middle">complexity: high</text><text x="452" y="166" fill="var(--dg-accent-2)" text-anchor="middle">stateful</text><rect x="545" y="30" width="165" height="150" rx="11" fill="var(--dg-accent-surface)" stroke="var(--dg-accent)"></rect><text x="627" y="52" font-size="11" font-weight="700" fill="var(--dg-accent-2)" text-anchor="middle">gRPC stream</text><text x="627" y="78" fill="var(--dg-accent-2)" text-anchor="middle">dir: both ways</text><text x="627" y="100" fill="var(--dg-accent-2)" text-anchor="middle">browser: no&#42;</text><text x="627" y="122" fill="var(--dg-ok)" text-anchor="middle">latency: low</text><text x="627" y="144" fill="var(--dg-ink-2)" text-anchor="middle">typed/binary</text><text x="627" y="166" fill="var(--dg-ink-2)" text-anchor="middle">service&#x3C;->service</text></g><text x="360" y="196" class="serif" font-size="11" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">&#42;gRPC needs gRPC-Web/a proxy in browsers (gRPC sec 19). Pick the leftmost column that meets the need.</text></svg>
 </Diagram>
 
-The rule: simplest that fits
-
+<Callout type="info" title="The rule: simplest that fits">
 Move left until it no longer works. Need server push to a browser but not client->server chatter? **SSE**, not WebSockets, you skip the entire backplane/sticky-session burden of Part IV. Genuinely need frequent bidirectional browser traffic? **WebSockets**. Two backend services? **gRPC streaming**. Reaching for WebSockets when SSE or even polling would do is one of the most common and costly over- engineering mistakes in real-time work.
+</Callout>
 
 ## Common Pitfalls
 
@@ -548,9 +532,9 @@ The failure modes that bite WebSocket servers in production, most are about _res
 | **Forgetting the backplane**      | Works on one instance; messages vanish between users once you scale out (sec 15)                             | Design the pub/sub backplane in early                                                                        |
 | **No reconnection logic**         | Client silently stops receiving after the first network blip or deploy                                       | Reconnect with backoff + jitter, then re-sync (sec 17)                                                       |
 
-Stateful connections need lifecycle discipline
-
+<Callout type="warn" title="Stateful connections need lifecycle discipline">
 Notice the pattern: nearly every pitfall is a _resource that wasn't bounded or freed_, a leaked connection, an unbounded buffer, a zombie socket. Stateless HTTP forgives sloppiness here because each request is short-lived and self-cleaning; a WebSocket lives for hours and holds memory the whole time. Treat every connection as something you must explicitly account for from open to close, and most production problems never appear.
+</Callout>
 
 ## Designing Real-Time Systems
 
@@ -566,9 +550,9 @@ Pulling the manual into design judgment for anything real-time.
 - **Authenticate at the handshake, authorize every message, secure the channel.** `wss://`, origin checks, validated inbound messages (sec 13-14).
 - **Keep the read loop fast;** offload real work to a queue/worker (ch.10), and serialize writes through one writer per connection (sec 8).
 
-When WebSockets, and when not
-
+<Callout type="info" title="When WebSockets, and when not">
 **Reach for WebSockets** for genuinely interactive, low-latency, bidirectional browser experiences: chat, multiplayer games, collaborative editing, live trading/betting interfaces, real-time dashboards with client interaction. **Don't** reach for them for one-way server push (use SSE), for occasional updates (polling), for request/response (plain HTTP/REST, the HTTP chapter), or for service-to-service streaming (gRPC). The skill, as always, is matching the transport to the actual interaction shape rather than reaching for the most powerful tool by reflex.
+</Callout>
 
 ## Cheat-Sheet
 

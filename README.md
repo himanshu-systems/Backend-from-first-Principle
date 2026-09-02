@@ -8,31 +8,31 @@ This repository contains a comprehensive collection of notes, code snippets, and
 
 The documentation is organized into the following topics:
 
-1. **HTTP and CORS** - Understanding the web's foundational protocol and Cross-Origin Resource Sharing.
+1. **HTTP & CORS** - Understanding the web's foundational protocol and Cross-Origin Resource Sharing.
 2. **Routing in Backend** - How requests are directed to the appropriate handlers.
-3. **Serialization and Deserialization** - Converting data structures to/from formats like JSON and Protobuf.
-4. **Authentication and Authorization** - Securing applications and managing user access.
-5. **Validations and Transformations** - Ensuring data integrity and sanitization.
-6. **Controllers, Services, Repositories, and Middlewares** - Exploring the layered architectural pattern and request context.
-7. **API Design (REST API)** - Best practices for designing intuitive and scalable RESTful APIs.
+3. **Serialization & Deserialization** - Converting data structures to/from formats like JSON and Protobuf.
+4. **Authentication & Authorization** - Securing applications and managing user access.
+5. **Validations & Transformations** - Ensuring data integrity and sanitization.
+6. **Controllers, Services & Middlewares** - Exploring the layered architectural pattern and request context.
+7. **API Design (REST)** - Best practices for designing intuitive and scalable RESTful APIs.
 8. **Databases** - Core concepts of database integration in backend systems.
 9. **Caching** - The secret behind blazingly fast applications (Redis, Memcached, etc.).
-10. **Task Queues and Background Jobs** - Managing asynchronous workloads.
-11. **Full-Text Search** - Building fast search functionality using Elasticsearch.
-12. **Error Handling and Fault-Tolerant Systems** - Building resilient applications that handle failures gracefully.
-13. **gRPC and Inter-Service Communication** - Efficient communication protocols for microservices.
-14. **Production-Grade Configuration Management** - Managing environment variables and configurations securely.
-15. **Logging, Monitoring, and Observability** - Keeping track of system health and debugging issues in production.
+10. **Task Queues & Background Jobs** - Managing asynchronous workloads.
+11. **Full-Text Search (Elasticsearch)** - Building fast search functionality using Elasticsearch.
+12. **Error Handling & Fault Tolerance** - Building resilient applications that handle failures gracefully.
+13. **gRPC & Inter-Service Communication** - Efficient communication protocols for microservices.
+14. **Configuration Management** - Managing environment variables and configurations securely.
+15. **Logging & Observability** - Keeping track of system health and debugging issues in production.
 16. **Graceful Shutdown** - Safely terminating applications without losing data or interrupting requests.
 17. **Backend Security** - Everything you need to know to secure your backend (SQL injection, XSS, CSRF, etc.).
-18. **Backend Scaling and Performance Engineering (Part 1)** - Strategies for scaling applications vertically and horizontally.
-19. **Backend Scaling and Performance Engineering (Part 2)** - Advanced scaling techniques.
+18. **Scaling & Performance (Part 1)** - Strategies for scaling applications vertically and horizontally.
+19. **Scaling & Performance (Part 2)** - Advanced scaling techniques.
 20. **Concurrency & Parallelism** - Understanding IO-bound vs CPU-bound tasks and how to optimize them.
-21. **Containerization, Deployment, Docker, Kubernetes, and CI/CD** - Packaging and shipping applications consistently.
+21. **Docker, K8s & CI/CD** - Packaging and shipping applications consistently.
 22. **Automated Testing** - Writing effective Unit, Integration, and End-to-End (E2E) tests.
-23. **Message Brokers and Event Streaming** - Using tools like Kafka for event-driven architectures.
-24. **WebSockets and Real-Time Communication** - Building real-time features using WebSockets.
-25. **WebRTC and Real-Time Media** - Derived from six measurable constraints (light speed, the 150ms conversational budget, packet size, raw video bitrate, error propagation, IPv4 exhaustion): SDP, NAT traversal with STUN/TURN/ICE, DTLS-SRTP, RTP/RTCP, jitter buffers, congestion control, echo cancellation, and the infrastructure behind it (signaling, TURN fleets, SFUs, simulcast, media-plane scaling).
+23. **Message Brokers & Kafka** - Using tools like Kafka for event-driven architectures.
+24. **WebSockets & Real-Time** - Building real-time features using WebSockets.
+25. **WebRTC & Real-Time Media** - Derived from six measurable constraints (light speed, the 150ms conversational budget, packet size, raw video bitrate, error propagation, IPv4 exhaustion): SDP, NAT traversal with STUN/TURN/ICE, DTLS-SRTP, RTP/RTCP, jitter buffers, congestion control, echo cancellation, and the infrastructure behind it (signaling, TURN fleets, SFUs, simulcast, media-plane scaling).
 
 ## Getting Started
 

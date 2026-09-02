@@ -176,10 +176,6 @@ You keep a folder of sequentially-named SQL files. A command-line tool (**dbmate
 
 Each file has two halves: an **up migration** (the change, `CREATE TABLE`, `CREATE INDEX`...) and a **down migration** (the exact reverse, `DROP TABLE`...). The down half exists so that if a change breaks production you can **roll back** to the previous state cleanly. The tool maintains a `schema_migrations` table holding the current version, so it never re-runs an already-applied file (which would error with "table already exists").
 
-______
-
-SQL
-
 a dbmate migration file, up & down halves
 
 ```sql
@@ -227,10 +223,6 @@ One project has many tasks; each task belongs to one project. Implement it by pu
 ### Many-to-many: users &lt;-> projects
 
 A user can be in many projects, and a project can have many users, and you want to query it both directions. When the same relationship makes sense from both sides, it's many-to-many. You can't express that with a single foreign key, so you create a **linking table** (`project_members`) holding two foreign keys, `user_id` and `project_id`, and make the pair a **composite primary key**. That combination is implicitly unique and not-null, so "user 1 is in project 2" can exist exactly once.
-
-______
-
-SQL
 
 the full schema, enums, then the five tables
 
@@ -371,10 +363,6 @@ To return each user _with_ their profile in one API call, you join `users` to `u
 
 Two more details in that query. The short **aliases** (`u`, `up`) just make a long query readable, you assign them once in `FROM`/`JOIN` and reuse them everywhere. And `to_jsonb(up.*)` is a built-in Postgres function that converts the matched profile row into a JSON object, embedded as a single `profile` field on each user, so the frontend gets `user.profile` nested, in one round trip, instead of making a second call. Always end a list query with an `ORDER BY` (here `created_at DESC`): query results come back in _arbitrary_ order otherwise, and that order can change between calls, so you sort explicitly, usually newest-first by creation time.
 
-______
-
-SQL
-
 GET /v1/users, list users with embedded profile
 
 ```sql
@@ -394,10 +382,6 @@ This is the single most important security habit with databases. A **parameteriz
 <Callout type="info" title="SQL injection / the cardinal sin">
 The vulnerability appears when you build queries by **concatenating strings** with user input. Then a crafted input can break out and run its own SQL, reading, altering, or wiping your data. **Never** string-concatenate user values into a query. Always use parameter placeholders; your driver/ORM handles the safe substitution. This isn't optional.
 </Callout>
-
-______
-
-SQLGoPython
 
 GET /v1/users/:id, same query, parameter-safe in each layer
 
@@ -432,10 +416,6 @@ cur.execute(
 
 ### Insert & update
 
-______
-
-SQL
-
 POST create / PATCH partial update
 
 ```sql
@@ -458,10 +438,6 @@ List endpoints support filtering, sorting, and pagination, built dynamically in 
 - **Filter** with `ILIKE`, case-insensitive pattern match. `WHERE u.full_name ILIKE $1 || '%'` matches names starting with a letter regardless of case.
 - **Sort** from an _allow-list_ of columns the client may sort by (`full_name`, `email`, `created_at`) plus a direction.
 - **Paginate** with `LIMIT` + `OFFSET`. Note: the API's page 1 maps to database `OFFSET 0`, the offset is zero-based.
-
-______
-
-SQL
 
 list with filter + sort + pagination
 
@@ -508,10 +484,6 @@ Walking the actual reasoning behind each index in our schema makes the rule conc
 
 Internally a B-tree keeps these entries sorted, which is what makes both the direct lookup and the ordered scan fast, but you don't need the internals to apply the rule; the three triggers (WHERE / JOIN / ORDER BY) are enough to decide.
 
-______
-
-SQL
-
 indexes chosen from real WHERE / JOIN / ORDER BY usage
 
 ```sql
@@ -536,10 +508,6 @@ A **trigger** runs a function automatically when a condition is met. Here: defin
 <Diagram caption="UPDATE fires the trigger automatically">
 <svg viewBox="0 0 720 100" xmlns="http://www.w3.org/2000/svg" font-family="var(--font-diagram-mono)" font-size="10.5"><rect x="20" y="34" width="170" height="34" rx="7" fill="var(--dg-info-surface)" stroke="var(--dg-info-soft)"></rect><text x="105" y="55" text-anchor="middle" fill="var(--dg-ink)">UPDATE row</text><line x1="190" y1="51" x2="250" y2="51" stroke="var(--dg-line-2)" stroke-width="1.5" marker-end="url(#a2)"></line><rect x="250" y="34" width="200" height="34" rx="7" fill="var(--dg-accent)"></rect><text x="350" y="55" text-anchor="middle" fill="var(--dg-on-accent)">BEFORE UPDATE trigger</text><line x1="450" y1="51" x2="510" y2="51" stroke="var(--dg-line-2)" stroke-width="1.5" marker-end="url(#a2)"></line><rect x="510" y="34" width="190" height="34" rx="7" fill="var(--dg-ok-surface)" stroke="var(--dg-ok-border)"></rect><text x="605" y="55" text-anchor="middle" fill="var(--dg-ok)">updated&#95;at = now()</text><defs><marker id="a2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--dg-line-2)"></path></marker></defs></svg>
 </Diagram>
-
-______
-
-SQL
 
 one function, reused as a trigger on every table
 
@@ -576,10 +544,6 @@ Back in section 3 we saw why a text file can't handle two people editing the sam
 ### The classic example: a money transfer
 
 Move INR 500 from account A to account B. That's two writes: subtract from A, add to B. If the server crashes _between_ them, A has lost INR 500 that never arrived at B, money vanished. A transaction makes the pair atomic: wrap them in `BEGIN ... COMMIT`, and either both happen or, on any failure, `ROLLBACK` undoes everything as if nothing occurred.
-
-______
-
-SQLGoPython
 
 both writes commit together, or neither does
 
@@ -639,10 +603,6 @@ For read-then-write logic specifically, there are two standard tools:
 - **Atomic write**: push the computation into the SQL itself: `UPDATE accounts SET balance = balance - 500 ...` reads and writes in one locked step, so there's no gap for another writer to slip into. (Far safer than reading the balance into app code, computing, and writing it back.)
 - **Row locking**: `SELECT ... FOR UPDATE` locks the rows you read until your transaction ends, so a concurrent transaction must wait its turn instead of racing you.
 
-______
-
-SQL
-
 SELECT ... FOR UPDATE, lock the row, then safely modify
 
 ```sql
@@ -675,10 +635,6 @@ You fetch a list of N projects, then loop over them and fire _one more query per
 </Diagram>
 
 The fix is to fetch related data in **one** query, a JOIN, or a batched `WHERE project_id = ANY($1)`, or an aggregate that builds nested JSON server-side. With an ORM, the equivalent is "eager loading" (e.g. `JOIN`/`preload`/`include`) instead of lazy loading inside a loop.
-
-______
-
-SQL
 
 N+1 collapsed into one query with aggregated tasks
 
@@ -715,10 +671,6 @@ One caveat that confuses people: on a _tiny_ table the planner may correctly cho
 ### Soft deletes
 
 Often you don't want a row truly gone, you want it kept for audit, recovery, or historical integrity, but hidden from normal queries. That's a **soft delete**: add a nullable `deleted_at TIMESTAMPTZ` column (null = live, a timestamp = deleted). "Deleting" becomes an UPDATE; every read filters out the deleted rows.
-
-______
-
-SQL
 
 soft delete / the column, the "delete", the reads, and the unique-index gotcha
 

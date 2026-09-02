@@ -202,4 +202,8 @@ const { caption } = Astro.props;
   /* 500 labels carry class="mono" and relied on the old per-chapter
      stylesheet, which this migration deletes, to make them monospace. */
   .diagram-frame :global(svg .mono) { font-family: var(--font-diagram-mono); }
+
+  /* And 77 carry class="serif" for the same reason: the asides and captions
+     drawn inside the artwork were set in the prose face, not the UI one. */
+  .diagram-frame :global(svg .serif) { font-family: var(--font-prose); }
 </style>

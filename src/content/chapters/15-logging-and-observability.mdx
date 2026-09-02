@@ -62,17 +62,9 @@ TRACES
 **Where did it go?**\
 A trace follows a single request through every component it touched, handler -> service -> DB -> external API. Shows component interactions and latency per step.
 
-Logs -> Answer
-
-"User 42 tried to log in at 14:32:01 and failed, invalid password."
-
-Metrics -> Answer
-
-"In the last 5 minutes, 800 requests/sec, 12% error rate, p99 latency 340ms."
-
-Traces -> Answer
-
-"This request spent 240ms in the DB query layer and 80ms calling the email provider, that's where the latency is."
+- **Logs -> Answer**: "User 42 tried to log in at 14:32:01 and failed, invalid password."
+- **Metrics -> Answer**: "In the last 5 minutes, 800 requests/sec, 12% error rate, p99 latency 340ms."
+- **Traces -> Answer**: "This request spent 240ms in the DB query layer and 80ms calling the email provider, that's where the latency is."
 
 03
 
@@ -145,25 +137,11 @@ Logging is the practice of **recording all important events** throughout your ap
 
 A good rule of thumb: anything a developer would want to know when debugging an issue at 2 AM, without access to the live system, without the ability to reproduce the bug, with only the logs to go on.
 
-Business events
-
-User created a to-do. Order was placed. Payment succeeded. Subscription cancelled. These are the events that matter to the business and to auditing.
-
-Security events
-
-Login attempt (success or failure). Password reset. Token revoked. Admin action. These are critical for security audits and intrusion detection.
-
-System events
-
-Server startup / shutdown. Database connection established / lost. Background job started / finished. Config loaded.
-
-Errors & exceptions
-
-Every unhandled error, every caught exception, every failed external API call. Always include: timestamp, user ID, request ID, error type, stack trace.
-
-Performance signals
-
-Slow queries (> 500ms), large payload responses, DB connection pool warnings. These are logs that become metrics over time.
+- **Business events**: User created a to-do. Order was placed. Payment succeeded. Subscription cancelled. These are the events that matter to the business and to auditing.
+- **Security events**: Login attempt (success or failure). Password reset. Token revoked. Admin action. These are critical for security audits and intrusion detection.
+- **System events**: Server startup / shutdown. Database connection established / lost. Background job started / finished. Config loaded.
+- **Errors & exceptions**: Every unhandled error, every caught exception, every failed external API call. Always include: timestamp, user ID, request ID, error type, stack trace.
+- **Performance signals**: Slow queries (> 500ms), large payload responses, DB connection pool warnings. These are logs that become metrics over time.
 
 ### What Metadata to Include in Every Log
 
@@ -313,21 +291,10 @@ Metrics are **numerical measurements of your system's behaviour**, aggregated ov
 
 ### The Four Core Metric Types (Prometheus Model)
 
-Counter
-
-A value that **only ever goes up** (and resets on restart). Used for: total requests served, total errors, total tasks processed. Query: `rate(http_requests_total[5m])` = requests/sec over last 5 min.
-
-Gauge
-
-A value that **can go up or down**. Used for: current queue depth, current active DB connections, current goroutine count, memory usage right now.
-
-Histogram
-
-Records **observations in configurable buckets**. Used for: request latency, response size. Lets you compute percentiles (p50, p95, p99), crucial for SLOs. "95% of requests complete under 200ms."
-
-Summary
-
-Similar to Histogram but calculates percentiles client-side. Less flexible for aggregation across multiple instances. Prefer Histograms in most cases.
+- **Counter**: A value that **only ever goes up** (and resets on restart). Used for: total requests served, total errors, total tasks processed. Query: `rate(http_requests_total[5m])` = requests/sec over last 5 min.
+- **Gauge**: A value that **can go up or down**. Used for: current queue depth, current active DB connections, current goroutine count, memory usage right now.
+- **Histogram**: Records **observations in configurable buckets**. Used for: request latency, response size. Lets you compute percentiles (p50, p95, p99), crucial for SLOs. "95% of requests complete under 200ms."
+- **Summary**: Similar to Histogram but calculates percentiles client-side. Less flexible for aggregation across multiple instances. Prefer Histograms in most cases.
 
 ### Key Metrics Every Backend Should Expose
 
@@ -358,25 +325,11 @@ A **trace** is the complete record of a single request's journey through your sy
 
 ### Trace vs Span: Definitions
 
-Trace
-
-The entire end-to-end journey of a single request. Identified by a globally unique `trace_id`. Contains all spans for that request.
-
-Span
-
-A single unit of work within a trace, one function call, one DB query, one HTTP call. Has a start time, duration, parent span ID, and arbitrary attributes (user\_id, query, etc.).
-
-Root Span
-
-The first span in a trace. Typically the HTTP handler or the entry point of the request. Has no parent.
-
-Context Propagation
-
-The mechanism by which `trace_id` and `span_id` are passed from function to function (via Go's `context.Context`), and from service to service (via HTTP headers like `traceparent`).
-
-traceparent header
-
-W3C standard header: `traceparent: 00-abc123-span001-01`. When your service calls another service, it includes this header so the receiving service can join its spans to the same trace.
+- **Trace**: The entire end-to-end journey of a single request. Identified by a globally unique `trace_id`. Contains all spans for that request.
+- **Span**: A single unit of work within a trace, one function call, one DB query, one HTTP call. Has a start time, duration, parent span ID, and arbitrary attributes (user\_id, query, etc.).
+- **Root Span**: The first span in a trace. Typically the HTTP handler or the entry point of the request. Has no parent.
+- **Context Propagation**: The mechanism by which `trace_id` and `span_id` are passed from function to function (via Go's `context.Context`), and from service to service (via HTTP headers like `traceparent`).
+- **traceparent header**: W3C standard header: `traceparent: 00-abc123-span001-01`. When your service calls another service, it includes this header so the receiving service can join its spans to the same trace.
 
 <Callout type="info" title="Why Traces Are Different from Logs">
 A log entry says "this error happened". A trace says "this error happened _here_, at _this point_ in the request's journey, _after_ these preceding steps, and it caused the total request to take 4.2 seconds instead of 50ms." Traces provide causal context that isolated logs cannot.
@@ -396,25 +349,11 @@ A log entry says "this error happened". A trace says "this error happened _here_
 
 ### OTel Core Concepts
 
-Tracer
-
-The OTel object that creates spans. Each component (service, library) gets its own named tracer. `otel.Tracer("todo-service")`
-
-Span
-
-Created by the tracer. Has a name, start/end time, status, and key-value attributes. OTel spans automatically link to parent spans via context.
-
-Context Propagation
-
-OTel automatically injects/extracts `traceparent` headers in HTTP clients and servers (with the right libraries). Zero manual work for standard HTTP.
-
-OTel Collector
-
-A standalone agent/sidecar that receives telemetry from your app (via OTLP protocol), optionally processes/filters it, and exports to one or more backends. Decouples instrumentation from backend choice.
-
-Auto-instrumentation
-
-OTel provides libraries that auto-instrument popular frameworks (net/http, gin, gRPC, database/sql, redis, etc.) with zero code changes. You get traces for DB queries and HTTP calls for free.
+- **Tracer**: The OTel object that creates spans. Each component (service, library) gets its own named tracer. `otel.Tracer("todo-service")`
+- **Span**: Created by the tracer. Has a name, start/end time, status, and key-value attributes. OTel spans automatically link to parent spans via context.
+- **Context Propagation**: OTel automatically injects/extracts `traceparent` headers in HTTP clients and servers (with the right libraries). Zero manual work for standard HTTP.
+- **OTel Collector**: A standalone agent/sidecar that receives telemetry from your app (via OTLP protocol), optionally processes/filters it, and exports to one or more backends. Decouples instrumentation from backend choice.
+- **Auto-instrumentation**: OTel provides libraries that auto-instrument popular frameworks (net/http, gin, gRPC, database/sql, redis, etc.) with zero code changes. You get traces for DB queries and HTTP calls for free.
 
 11
 
@@ -826,21 +765,10 @@ After adding the middleware, New Relic automatically captures: transaction time 
 
 The **ELK Stack** (now called the **Elastic Stack**) is the classic enterprise logging platform. It provides full-text search across logs, powerful aggregations, and rich dashboards. It's heavier than Loki but offers more querying flexibility.
 
-Elasticsearch
-
-The storage and search engine. Indexes every field of every log document. Supports complex queries: full-text search, aggregations, range filters. Horizontally scalable.
-
-Logstash
-
-The log pipeline. Ingests logs from many sources (files, Kafka, Redis, Beats agents), transforms/filters them (parse JSON, add geo-IP, mask PII), and outputs to Elasticsearch. Powerful but resource-heavy.
-
-Kibana
-
-The visualization layer. Build dashboards, run queries against Elasticsearch (KQL language), create alerts. The UI equivalent of Grafana for Elastic data.
-
-Filebeat / Fluentd
-
-Lightweight log shipping agents that run on your servers and ship log files to Logstash or Elasticsearch directly. Lower resource overhead than Logstash as a local agent.
+- **Elasticsearch**: The storage and search engine. Indexes every field of every log document. Supports complex queries: full-text search, aggregations, range filters. Horizontally scalable.
+- **Logstash**: The log pipeline. Ingests logs from many sources (files, Kafka, Redis, Beats agents), transforms/filters them (parse JSON, add geo-IP, mask PII), and outputs to Elasticsearch. Powerful but resource-heavy.
+- **Kibana**: The visualization layer. Build dashboards, run queries against Elasticsearch (KQL language), create alerts. The UI equivalent of Grafana for Elastic data.
+- **Filebeat / Fluentd**: Lightweight log shipping agents that run on your servers and ship log files to Logstash or Elasticsearch directly. Lower resource overhead than Logstash as a local agent.
 
 ### ELK vs Grafana Loki
 
@@ -860,21 +788,10 @@ Not every metric needs an alert. Alert fatigue is a real problem, if engineers r
 
 ### The Four Golden Signals (Google SRE Book)
 
-Latency
-
-Time to serve a request. Distinguish between successful and failed requests, a fast error is not a good metric. Alert on p99 > threshold.
-
-Traffic
-
-Demand on your system, requests/sec. Sudden drops can indicate an outage just as much as sudden spikes. Alert on both extremes.
-
-Errors
-
-Rate of failed requests (5xx). Alert on error rate, not raw count, a spike in traffic will naturally cause more errors even if the error rate is stable.
-
-Saturation
-
-How "full" is your service, CPU, memory, DB connections, queue depth. Alerts before the system tips into failure. Alert at 80%, page at 95%.
+- **Latency**: Time to serve a request. Distinguish between successful and failed requests, a fast error is not a good metric. Alert on p99 > threshold.
+- **Traffic**: Demand on your system, requests/sec. Sudden drops can indicate an outage just as much as sudden spikes. Alert on both extremes.
+- **Errors**: Rate of failed requests (5xx). Alert on error rate, not raw count, a spike in traffic will naturally cause more errors even if the error rate is stable.
+- **Saturation**: How "full" is your service, CPU, memory, DB connections, queue depth. Alerts before the system tips into failure. Alert at 80%, page at 95%.
 
 ### Alert Rules (Grafana / Prometheus format)
 

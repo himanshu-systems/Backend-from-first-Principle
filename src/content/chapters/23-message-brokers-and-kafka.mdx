@@ -29,9 +29,9 @@ A traditional message queue is a to-do list: you take an item, do it, and it's g
 <svg viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Producers writing events to an append-only log, which is retained, while several independent consumer groups read from their own positions"><rect x="20" y="40" width="120" height="40" rx="9" fill="var(--dg-accent)"></rect><text x="80" y="65" font-size="11" font-weight="700" fill="var(--dg-on-accent)" text-anchor="middle">producers</text><defs><marker id="k1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 Z" fill="var(--dg-accent-2)"></path></marker><marker id="k2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 Z" fill="var(--dg-ok)"></path></marker></defs><path d="M142 75 C180 90 200 100 230 104" stroke="var(--dg-accent-2)" stroke-width="1.8" marker-end="url(#k1)"></path><text x="180" y="98" class="mono" font-size="9" fill="var(--dg-accent-2)">append -></text><text x="235" y="100" class="mono" font-size="10" font-weight="700" fill="var(--dg-warn)">THE LOG (append-only, retained)</text><g><rect x="232" y="108" width="44" height="34" rx="4" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="254" y="129" class="mono" font-size="10" fill="var(--dg-warn-2)">e0</text><rect x="278" y="108" width="44" height="34" rx="4" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="300" y="129" class="mono" font-size="10" fill="var(--dg-warn-2)">e1</text><rect x="324" y="108" width="44" height="34" rx="4" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="346" y="129" class="mono" font-size="10" fill="var(--dg-warn-2)">e2</text><rect x="370" y="108" width="44" height="34" rx="4" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="392" y="129" class="mono" font-size="10" fill="var(--dg-warn-2)">e3</text><rect x="416" y="108" width="44" height="34" rx="4" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="438" y="129" class="mono" font-size="10" fill="var(--dg-warn-2)">e4</text><rect x="462" y="108" width="44" height="34" rx="4" fill="var(--dg-accent-surface)" stroke="var(--dg-warn)" stroke-dasharray="3 2"></rect><text x="484" y="129" class="mono" font-size="10" fill="var(--dg-ink-3)">...</text></g><text x="232" y="160" class="mono" font-size="8.5" fill="var(--dg-ink-3)">offset 0    1     2     3     4 -> new writes go to the tail</text><rect x="540" y="40" width="160" height="34" rx="8" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="620" y="62" font-size="10" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">consumer A @ offset 4</text><rect x="540" y="100" width="160" height="34" rx="8" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="620" y="122" font-size="10" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">consumer B @ offset 1</text><rect x="540" y="160" width="160" height="34" rx="8" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="620" y="182" font-size="10" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">consumer C @ offset 0</text><path d="M460 120 C500 100 510 70 538 60" stroke="var(--dg-ok)" stroke-width="1.4" fill="none" marker-end="url(#k2)"></path><path d="M300 130 C420 150 470 130 538 120" stroke="var(--dg-ok)" stroke-width="1.4" fill="none" marker-end="url(#k2)"></path><path d="M254 142 C360 200 460 195 538 182" stroke="var(--dg-ok)" stroke-width="1.4" fill="none" marker-end="url(#k2)"></path><text x="360" y="220" class="serif" font-size="12.5" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">Each consumer tracks its own position; reading e1 doesn't remove it, another consumer can still read it.</text></svg>
 </Diagram>
 
-The one definition
-
+<Callout type="info" title="The one definition">
 Kafka is a **distributed, durable, append-only commit log** of immutable events, partitioned for scale and replicated for fault tolerance, that **multiple independent consumers read at their own offset**: with events _retained_ after reading. Everything else is detail on top of that.
+</Callout>
 
 ## Queue vs Log: Why Kafka Is Different
 
@@ -69,9 +69,9 @@ Everything Kafka does rests on the humblest data structure in computing: the **a
 - **Immutability is simple & safe.** Records never change, so there are no locks for updates, no read/write conflicts, and concurrent readers never interfere. An immutable history is also trivially cacheable and easy to reason about.
 - **The log _is_ the history.** Because nothing is overwritten, the log is a complete, ordered record of everything that happened, which is exactly what makes replay (sec 11), event sourcing (sec 14), and feeding new consumers from the beginning possible.
 
-One structure, everything follows
-
+<Callout type="info" title="One structure, everything follows">
 Hold the append-only log firmly: writes append and get an offset; reads move forward; records are immutable and retained. Partitions (sec 4) are just multiple such logs; consumer groups (sec 7) are bookmarks into them; delivery semantics (sec 9) are about how carefully you track those bookmarks. The whole system is the log idea, scaled and replicated.
+</Callout>
 
 Part II / Architecture
 
@@ -89,9 +89,9 @@ A **topic** is a named stream of related events, `orders`, `payments`, `page-vie
 - **Ordering.** Kafka guarantees order _within_ a single partition and makes no promise _across_ partitions. This is the central trade-off (sec 10): to keep related events ordered, you route them to the same partition via a shared **key** (all events for `order-42` use key `"order-42"`, so they're strictly ordered relative to each other).
 - **Storage.** Each partition is physically a set of segment files on a broker's disk, the actual append-only log from sec 3. Retention and compaction (sec 11) operate per partition.
 
-Partition count is a one-way-ish decision
-
+<Callout type="warn" title="Partition count is a one-way-ish decision">
 You can _increase_ a topic's partitions later, but doing so **breaks key-to-partition stability** (the modulo changes, so existing keys may move) and thus breaks ordering guarantees for in-flight keys. And you can't easily _decrease_ them. So choose partition count deliberately up front based on target throughput and the maximum consumer parallelism you'll need, too few caps your scaling, too many adds overhead (sec 19, sec 20).
+</Callout>
 
 ## Brokers, Replication & Durability
 
@@ -118,10 +118,6 @@ Older Kafka relied on a separate **ZooKeeper** cluster to store metadata and ele
 ## Producers
 
 A **producer** publishes records to a topic. Three producer concerns shape correctness and performance: the **key** (which decides the partition and thus ordering, sec 4), the **acks** (durability, sec 5), and **batching** (the producer groups records and compresses them for throughput). A record is a key/value pair plus optional headers and a timestamp; the value is your event payload (often Avro/Protobuf, sec 12).
-
-______
-
-● Go● Python
 
 ```go
 // Using confluent-kafka-go (librdkafka). kafka-go (segmentio) is a pure-Go alternative.
@@ -178,9 +174,9 @@ p.produce(
 p.flush()                          # block until queued messages are delivered
 ```
 
-No key = round-robin = no ordering
-
+<Callout type="warn" title="No key = round-robin = no ordering">
 If you don't set a key, records are spread across partitions (round-robin / sticky), maximizing parallelism but giving up any ordering relationship between them. That's fine for independent events; it's a bug if those events needed to stay ordered (all updates to one account, say). **Key by your ordering/entity boundary**: usually the entity ID, whenever order matters (sec 10).
+</Callout>
 
 ## Consumers & Consumer Groups
 
@@ -189,10 +185,6 @@ A **consumer** reads records from partitions. The powerful abstraction is the **
 <Diagram caption="Consumer groups">
 <svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A topic with four partitions; group A with two consumers splits them two each, while group B reads all four independently"><text x="90" y="22" class="mono" font-size="10" font-weight="700" fill="var(--dg-warn)">topic: 4 partitions</text><g><rect x="20" y="34" width="120" height="28" rx="6" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="80" y="53" font-size="10" fill="var(--dg-warn-2)" text-anchor="middle">P0</text><rect x="20" y="70" width="120" height="28" rx="6" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="80" y="89" font-size="10" fill="var(--dg-warn-2)" text-anchor="middle">P1</text><rect x="20" y="106" width="120" height="28" rx="6" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="80" y="125" font-size="10" fill="var(--dg-warn-2)" text-anchor="middle">P2</text><rect x="20" y="142" width="120" height="28" rx="6" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="80" y="161" font-size="10" fill="var(--dg-warn-2)" text-anchor="middle">P3</text></g><defs><marker id="ca7" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--dg-ok)"></path></marker><marker id="cb7" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--dg-accent)"></path></marker></defs><rect x="300" y="34" width="180" height="64" rx="10" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)" stroke-dasharray="5 3"></rect><text x="390" y="50" class="mono" font-size="9.5" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">group A (2 consumers)</text><rect x="312" y="58" width="74" height="30" rx="6" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="349" y="77" font-size="9" fill="var(--dg-ok)" text-anchor="middle">c1 &#x3C;- P0,P1</text><rect x="394" y="58" width="74" height="30" rx="6" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="431" y="77" font-size="9" fill="var(--dg-ok)" text-anchor="middle">c2 &#x3C;- P2,P3</text><path d="M140 48 C220 48 240 66 300 66" stroke="var(--dg-ok)" stroke-width="1.2" fill="none" marker-end="url(#ca7)"></path><path d="M140 120 C220 120 240 80 300 76" stroke="var(--dg-ok)" stroke-width="1.2" fill="none" marker-end="url(#ca7)"></path><rect x="300" y="120" width="180" height="64" rx="10" fill="var(--dg-accent-surface)" stroke="var(--dg-accent)" stroke-dasharray="5 3"></rect><text x="390" y="136" class="mono" font-size="9.5" font-weight="700" fill="var(--dg-accent-2)" text-anchor="middle">group B (1 consumer)</text><rect x="330" y="144" width="120" height="30" rx="6" fill="var(--dg-accent-surface)" stroke="var(--dg-accent)"></rect><text x="390" y="163" font-size="9" fill="var(--dg-accent-2)" text-anchor="middle">c1 &#x3C;- P0,P1,P2,P3</text><path d="M140 156 C220 156 240 156 298 156" stroke="var(--dg-accent)" stroke-width="1.2" fill="none" marker-end="url(#cb7)"></path><text x="585" y="80" class="serif" font-size="11.5" font-style="italic" fill="var(--dg-ok)" text-anchor="middle">group A splits the load</text><text x="585" y="98" class="serif" font-size="11.5" font-style="italic" fill="var(--dg-ok)" text-anchor="middle">(scale out within a group)</text><text x="585" y="150" class="serif" font-size="11.5" font-style="italic" fill="var(--dg-accent-2)" text-anchor="middle">group B is independent</text><text x="585" y="168" class="serif" font-size="11.5" font-style="italic" fill="var(--dg-accent-2)" text-anchor="middle">it sees ALL events too</text><text x="360" y="218" class="serif" font-size="12" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">Same group = work-sharing (each event once). Different groups = broadcast (each group gets everything).</text><text x="360" y="240" class="mono" font-size="9.5" fill="var(--dg-accent-2)" text-anchor="middle">max useful consumers in a group = number of partitions (extra consumers sit idle)</text></svg>
 </Diagram>
-
-______
-
-● Go● Python
 
 ```go
 c, _ := kafka.NewConsumer(&kafka.ConfigMap{
@@ -238,9 +230,9 @@ finally:
     c.close()                              # leave the group cleanly -> triggers a rebalance
 ```
 
-Partitions cap your parallelism
-
+<Callout type="warn" title="Partitions cap your parallelism">
 Because one partition is consumed by at most one consumer _per group_, a group can usefully have at most as many active consumers as the topic has partitions. A topic with 4 partitions and 6 group members leaves 2 consumers idle. So your _maximum consumption parallelism is set by partition count_ (sec 4), another reason to size partitions for your peak throughput up front (sec 20).
+</Callout>
 
 Part III / Guarantees
 
@@ -268,9 +260,9 @@ The question every distributed messaging system must answer: if things fail and 
 <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three boxes: at-most-once may lose, at-least-once may duplicate, exactly-once neither but is costlier"><rect x="20" y="40" width="210" height="120" rx="12" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="125" y="64" font-size="13" font-weight="700" fill="var(--dg-warn)" text-anchor="middle">At-most-once</text><text x="125" y="88" class="mono" font-size="9" fill="var(--dg-ink-2)" text-anchor="middle">commit BEFORE processing</text><text x="125" y="110" font-size="11" fill="var(--dg-accent-2)" text-anchor="middle">may LOSE messages</text><text x="125" y="128" font-size="11" fill="var(--dg-ok)" text-anchor="middle">never duplicates</text><text x="125" y="148" font-size="9.5" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">ok for lossy metrics</text><rect x="255" y="40" width="210" height="120" rx="12" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="360" y="64" font-size="13" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">At-least-once</text><text x="360" y="88" class="mono" font-size="9" fill="var(--dg-ink-2)" text-anchor="middle">commit AFTER processing</text><text x="360" y="110" font-size="11" fill="var(--dg-ok)" text-anchor="middle">never loses</text><text x="360" y="128" font-size="11" fill="var(--dg-accent-2)" text-anchor="middle">may DUPLICATE</text><text x="360" y="148" font-size="9.5" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">the common default + idempotency</text><rect x="490" y="40" width="210" height="120" rx="12" fill="var(--dg-accent-surface)" stroke="var(--dg-accent)"></rect><text x="595" y="64" font-size="13" font-weight="700" fill="var(--dg-accent-2)" text-anchor="middle">Exactly-once</text><text x="595" y="88" class="mono" font-size="9" fill="var(--dg-ink-2)" text-anchor="middle">idempotent producer + txns</text><text x="595" y="110" font-size="11" fill="var(--dg-ok)" text-anchor="middle">no loss, no dupes</text><text x="595" y="128" font-size="11" fill="var(--dg-warn)" text-anchor="middle">costlier / Kafka-to-Kafka</text><text x="595" y="148" font-size="9.5" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">read-process-write pipelines</text><text x="360" y="186" class="serif" font-size="12" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">Most systems choose at-least-once and make processing idempotent, the pragmatic sweet spot.</text></svg>
 </Diagram>
 
-At-least-once + idempotent consumers = the practical answer
-
+<Callout type="info" title="At-least-once + idempotent consumers = the practical answer">
 True end-to-end exactly-once is narrow: Kafka's `enable.idempotence` stops _producer_ duplicates, and **transactions** give exactly-once for Kafka-_to_-Kafka stream processing (consume, transform, produce, and commit offsets atomically). But the moment your consumer writes to an _external_ system (a database, a payment API), exactly-once across that boundary isn't free. The battle-tested approach: choose **at-least-once** and make your processing **idempotent**: safe to apply the same event twice (dedupe by event ID, upsert instead of insert). This is the same idempotency discipline as the task-queues chapter (sec 14 there) and REST idempotency keys, and it's why duplicates become harmless rather than catastrophic.
+</Callout>
 
 ```sql title="making at-least-once safe: idempotent processing (pseudocode, both languages)"
 -- The consumer may see the same event twice on retry/rebalance.
@@ -295,9 +287,9 @@ One sentence to memorize: **Kafka guarantees ordering within a partition, and no
 <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Events for order-42 all routed to one partition in strict order, while different orders spread across partitions for parallelism"><text x="20" y="24" class="mono" font-size="10" font-weight="700" fill="var(--dg-accent-2)">key = order id -> same order's events stay together &#x26; ordered</text><rect x="30" y="38" width="120" height="40" rx="8" fill="var(--dg-accent)"></rect><text x="90" y="62" font-size="10.5" font-weight="700" fill="var(--dg-on-accent)" text-anchor="middle">producer</text><defs><marker id="oa10" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--dg-accent-2)"></path></marker></defs><text x="200" y="56" class="mono" font-size="9" fill="var(--dg-warn-2)">P0</text><g class="mono" font-size="8.5"><rect x="220" y="42" width="84" height="22" rx="3" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="262" y="57" text-anchor="middle" fill="var(--dg-ink)">o42:placed</text><rect x="306" y="42" width="92" height="22" rx="3" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="352" y="57" text-anchor="middle" fill="var(--dg-ink)">o42:paid</text><rect x="400" y="42" width="104" height="22" rx="3" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="452" y="57" text-anchor="middle" fill="var(--dg-ink)">o42:shipped</text></g><text x="200" y="100" class="mono" font-size="9" fill="var(--dg-warn-2)">P1</text><g class="mono" font-size="8.5"><rect x="220" y="86" width="84" height="22" rx="3" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="262" y="101" text-anchor="middle" fill="var(--dg-ink)">o88:placed</text><rect x="306" y="86" width="92" height="22" rx="3" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="352" y="101" text-anchor="middle" fill="var(--dg-ink)">o88:paid</text></g><path d="M150 52 C175 52 185 52 218 52" stroke="var(--dg-accent-2)" stroke-width="1.3" fill="none" marker-end="url(#oa10)"></path><path d="M150 60 C175 90 185 96 218 96" stroke="var(--dg-accent-2)" stroke-width="1.3" fill="none" marker-end="url(#oa10)"></path><text x="540" y="56" class="serif" font-size="11" font-style="italic" fill="var(--dg-ok)" text-anchor="middle">o42 strictly ordered in P0;</text><text x="540" y="74" class="serif" font-size="11" font-style="italic" fill="var(--dg-ok)" text-anchor="middle">o88 strictly ordered in P1;</text><text x="540" y="92" class="serif" font-size="11" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">P0 vs P1 order = undefined</text><text x="360" y="150" class="serif" font-size="12" font-style="italic" fill="var(--dg-accent-2)" text-anchor="middle">Risk: a "hot" key (one huge customer) overloads its single partition, partition skew (sec 18).</text><text x="360" y="176" class="serif" font-size="12" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">Choose the key at the granularity where order matters but load still spreads.</text></svg>
 </Diagram>
 
-Two ordering foot-guns
-
+<Callout type="warn" title="Two ordering foot-guns">
 First, **key skew**: if order requires keying by a coarse value (e.g. one mega-tenant), all that tenant's traffic funnels into one partition, capping its throughput regardless of how many partitions exist (sec 18). Second, **retries can reorder**: with a non-idempotent producer and multiple in-flight requests, a retried message can land after a later one. Enabling `enable.idempotence` (sec 6) preserves per-partition order even across retries, another reason it's a sensible default.
+</Callout>
 
 ## Retention & Log Compaction
 
@@ -325,9 +317,9 @@ Kafka itself treats record values as opaque bytes, it neither knows nor cares wh
 
 The common serialization formats are **Avro** (the traditional Kafka pairing, compact with a rich schema-evolution story), **Protobuf** (the same IDL as the gRPC chapter, increasingly popular), and **JSON Schema** (readable, larger). The registry enforces a **compatibility mode**: typically _backward_ compatibility, meaning new consumers can read old data: you may add optional fields and remove ones with defaults, but you may not rename or retype a field. This is precisely the additive-change discipline from the gRPC chapter (sec 04 there: field numbers, never reuse) and REST versioning, enforced automatically by a server.
 
-A schema is a cross-team contract
-
+<Callout type="info" title="A schema is a cross-team contract">
 In a microservice fleet, a topic's schema is a public API that many independent teams depend on. The Schema Registry turns "please don't break the payload" from a tribal convention into a machine-checked gate, the same role buf plays for gRPC `.proto` files. Treat schema changes with the same care as any API change: additive and compatible by default.
+</Callout>
 
 ## Event-Driven Patterns
 
@@ -344,9 +336,9 @@ Kafka is the substrate for **event-driven architecture (EDA)**, where services c
 | **Choreography**                 | Services react to events autonomously   | Loose coupling, easy to extend; flow is harder to see end-to-end                    |
 | **Orchestration**                | A coordinator drives the steps (a saga) | Explicit, visible flow; reintroduces a central coordinator                          |
 
-Decoupling isn't free
-
+<Callout type="warn" title="Decoupling isn't free">
 EDA trades the clarity of a direct call for flexibility. The downside is that no single place describes the whole workflow, "what happens when an order is placed?" is now spread across many subscribers, which makes debugging and reasoning harder. Mitigate with good observability (trace/correlation IDs through event headers, the same idea as sec 13/sec 15 of the layers and logging chapters), clear event schemas (sec 12), and choosing orchestration (an explicit saga) when a flow genuinely needs a visible, coordinated sequence.
+</Callout>
 
 ## Event Sourcing & CQRS
 
@@ -358,9 +350,9 @@ Two advanced patterns the log enables, often confused, frequently paired. **Even
 
 The benefits are real: a **complete audit trail** (every change is a recorded fact, gold for finance and compliance), the ability to **reconstruct state at any past point** by replaying to an offset, and **multiple specialized read models** each rebuildable from the same log (compaction, sec 11, provides the snapshot to avoid replaying from the dawn of time).
 
-Powerful, and not free, don't reach for it by default
-
+<Callout type="warn" title="Powerful, and not free, don't reach for it by default">
 Event sourcing adds real complexity: schema evolution of _historical_ events is hard (you can never change the past, only how you interpret it), rebuilding state has a cost, and "what's the current value?" now requires a projection rather than a row read. It shines for audit-heavy, complex domains (payments, ledgers, squarely fintech) where the history _is_ the value. For ordinary CRUD, a normal database is simpler and correct, use the pattern where the audit trail and replay genuinely pay for the complexity, not as a default architecture.
+</Callout>
 
 ## The Outbox Pattern & Change Data Capture
 
@@ -391,9 +383,9 @@ COMMIT;   -- both succeed together, or neither does, no dual-write gap
 -- because downstream consumers are idempotent (sec 9).
 ```
 
-The standard answer to "DB + Kafka together"
-
+<Callout type="info" title="The standard answer to &quot;DB + Kafka together&quot;">
 Whenever a write must atomically produce an event, ubiquitous in payments and order systems, reach for the outbox (often via Debezium CDC). It converts an impossible distributed-transaction problem into an ordinary local transaction plus a reliable, idempotent relay. This is one of the most practically valuable patterns in the whole event-driven toolkit.
+</Callout>
 
 Part V / Processing, Ops & Practice
 
@@ -428,9 +420,9 @@ Returning to the sec 2 distinction with enough context to decide well. This is t
 | Replay / time-travel             | Yes, seek to any offset                                              | No                                                                  |
 | Best for                         | Event streaming, many subscribers, replay, analytics, event sourcing | Task offloading, RPC-ish jobs, complex routing, per-message control |
 
-The decision heuristic
-
+<Callout type="info" title="The decision heuristic">
 Reach for **Kafka** when events are facts many systems care about, when you need high throughput, ordering, or the ability to replay history, the streaming backbone. Reach for a **queue** (ch.10) when you're handing off discrete units of work to be done once, especially with per-message routing, priorities, delays, or dead-letter handling. They're complementary: a great many real systems run Kafka as the event spine _and_ a task queue for background jobs. Don't force task-queue semantics onto Kafka (per-message TTL, priority, selective ack), that's swimming against its design.
+</Callout>
 
 ## Consumer Pitfalls
 
@@ -445,9 +437,9 @@ Most production Kafka pain shows up on the consumer side. These are the failure 
 | **Slow processing blocks order** | To keep order you process a partition serially, so one slow record delays the rest                                    | Parallelize across partitions, not within; consider per-key parallelism patterns                                                         |
 | **Reprocessing on commit gaps**  | A crash between processing and offset commit re-delivers records                                                      | Expected under at-least-once, make processing idempotent (sec 9)                                                                         |
 
-Always have a dead-letter strategy
-
+<Callout type="warn" title="Always have a dead-letter strategy">
 A single malformed message must never be able to halt a whole partition indefinitely, that's a poison pill, and it's a common outage cause. Wrap per-record processing in error handling: on a persistent failure, publish the offending record (plus the error and metadata) to a **dead-letter topic**, commit past it, and keep the stream flowing. You investigate the dead-letter topic later instead of letting one bad record block everyone, the same DLQ discipline the task-queues chapter applies to failed jobs.
+</Callout>
 
 ## Operations & Monitoring
 
@@ -484,9 +476,9 @@ Pulling the manual into design judgment. Kafka is a powerful, sharp tool; used w
 - **Use the outbox for DB-and-event writes.** Never dual-write; make the event atomic with the data and relay it (sec 15).
 - **Size partitions for peak up front.** Repartitioning breaks key ordering (sec 4), so plan for growth rather than reacting to it.
 
-When Kafka, and when not
-
+<Callout type="info" title="When Kafka, and when not">
 **Reach for Kafka** when you have a stream of events many systems consume, need high throughput or replay, are doing event-driven architecture, event sourcing, analytics pipelines, or log/metric ingestion. **Don't** reach for it for simple request/response (use gRPC/REST, the gRPC chapter), for discrete background jobs with per-message routing or priority (use a task queue, ch.10), or as your only datastore for point lookups (use a database). Matching the tool to the shape of the problem is the whole skill.
+</Callout>
 
 ## Cheat-Sheet
 
