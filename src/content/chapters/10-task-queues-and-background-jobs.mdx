@@ -75,13 +75,8 @@ The classic motivating example is **user signup + email verification**. Here's t
 
 If steps 3-4 happen synchronously in your request handler, you've introduced a **hard dependency** on an external service inside your critical path. Two failure scenarios:
 
-No error handling
-
-The external API call fails -> your entire signup API returns a 500. The user sees an error trying to sign up. Terrible UX.
-
-With error handling
-
-You swallow the email error and return 200 "Check your email!", but the email was never sent. The user waits forever for a verification link that never comes. Also terrible UX.
+- **No error handling**: The external API call fails -> your entire signup API returns a 500. The user sees an error trying to sign up. Terrible UX.
+- **With error handling**: You swallow the email error and return 200 "Check your email!", but the email was never sent. The user waits forever for a verification link that never comes. Also terrible UX.
 
 In both cases, the fundamental problem is the same: **you're coupling your API's reliability to a third-party service's uptime**. Offloading the email to a background task decouples them completely.
 
@@ -111,21 +106,10 @@ The server **enqueues the task and returns immediately**. The client gets a resp
 
 A **task queue** is a system for managing and distributing background jobs. It is the engine behind the scenes that enables reliable, decoupled background processing. Think of it as a _to-do list for your backend_, your application adds items to the list, and workers pick them off one by one.
 
-Producer
-
-Your application code (any language/framework). Creates a task, serializes it (usually JSON), and pushes it into the queue. This is called **enqueuing** (ENQ).
-
-Queue / Broker
-
-The middleware that stores tasks until a worker is ready. Examples: Redis, RabbitMQ, Amazon SQS. Provides durability, ordering, and delivery guarantees.
-
-Consumer / Worker
-
-A separate process (or thread) that constantly polls the queue, picks up tasks (this is **dequeuing**: DEQ), deserializes them, and executes the registered handler function.
-
-Handler
-
-The actual function/method registered for a task type. Contains the real business logic (e.g., calling the email API). Same code you'd run synchronously, but now living inside a worker.
+- **Producer**: Your application code (any language/framework). Creates a task, serializes it (usually JSON), and pushes it into the queue. This is called **enqueuing** (ENQ).
+- **Queue / Broker**: The middleware that stores tasks until a worker is ready. Examples: Redis, RabbitMQ, Amazon SQS. Provides durability, ordering, and delivery guarantees.
+- **Consumer / Worker**: A separate process (or thread) that constantly polls the queue, picks up tasks (this is **dequeuing**: DEQ), deserializes them, and executes the registered handler function.
+- **Handler**: The actual function/method registered for a task type. Contains the real business logic (e.g., calling the email API). Same code you'd run synchronously, but now living inside a worker.
 
 ### Serialization & Deserialization
 
@@ -143,17 +127,9 @@ Because tasks cross process boundaries, all data must be serialized. JSON is the
 JSON
 ```
 
-Python
-
-Deserializes to a `dict`
-
-JavaScript
-
-Deserializes to an `object`
-
-Go
-
-Deserializes to a `struct` (via `json.Unmarshal`)
+- **Python**: Deserializes to a `dict`
+- **JavaScript**: Deserializes to an `object`
+- **Go**: Deserializes to a `struct` (via `json.Unmarshal`)
 
 05
 
@@ -224,17 +200,9 @@ LLEN celery   # -> 42 (42 pending tasks)
 Redis CLI
 ```
 
-Problem with Lists
-
-Once a worker pops the task (`BRPOP`), it's **gone from the list**. If the worker crashes before ACKing, the task is permanently lost. BullMQ solves this by moving tasks to a separate "active" sorted set and only deleting on ACK.
-
-No replay
-
-Lists are destructive. You cannot re-read old tasks for debugging or auditing.
-
-No consumer groups
-
-A single message can only go to one consumer. You cannot have multiple independent consumer groups reading the same queue (like Kafka).
+- **Problem with Lists**: Once a worker pops the task (`BRPOP`), it's **gone from the list**. If the worker crashes before ACKing, the task is permanently lost. BullMQ solves this by moving tasks to a separate "active" sorted set and only deleting on ACK.
+- **No replay**: Lists are destructive. You cannot re-read old tasks for debugging or auditing.
+- **No consumer groups**: A single message can only go to one consumer. You cannot have multiple independent consumer groups reading the same queue (like Kafka).
 
 #### Redis Streams (used by: Asynq, newer architectures)
 
@@ -408,37 +376,18 @@ When a consumer picks up a task (dequeues it), the task doesn't get deleted imme
 
 Without visibility timeout, if a consumer crashes mid-task, the task would be permanently lost, it was already removed from the queue when the consumer picked it up. Visibility timeout ensures that if the worker _doesn't acknowledge_ within the window (it crashed, hung, or the external service timed out), the task becomes visible again and another worker can pick it up. **Tasks are never lost.**
 
-ACK (success)
-
-Consumer sends acknowledgement -> queue permanently deletes the task.
-
-NACK (failure)
-
-Consumer reports failure -> queue schedules retry (with backoff).
-
-No signal
-
-Consumer crashed or hung -> visibility timeout expires -> task re-enqueued for another worker.
+- **ACK (success)**: Consumer sends acknowledgement -> queue permanently deletes the task.
+- **NACK (failure)**: Consumer reports failure -> queue schedules retry (with backoff).
+- **No signal**: Consumer crashed or hung -> visibility timeout expires -> task re-enqueued for another worker.
 
 09
 
 ## Types of Background Tasks
 
-One-Off Tasks
-
-Triggered once by a specific event. Send verification email, welcome email, password-reset link, in-app notification. Most common type.
-
-Recurring Tasks
-
-Scheduled at fixed intervals. Weekly reports, daily digest emails, DB cleanup jobs, orphan session purging. Implemented via cron-like schedulers.
-
-Chain Tasks
-
-Parent-child dependencies. Task B can only run after Task A succeeds. Tasks at the same level can run in parallel. Classic: video upload pipeline.
-
-Batch Tasks
-
-One trigger fans out into many parallel tasks. Delete account spawns sub-tasks per resource type. Send 10k reports at midnight.
+- **One-Off Tasks**: Triggered once by a specific event. Send verification email, welcome email, password-reset link, in-app notification. Most common type.
+- **Recurring Tasks**: Scheduled at fixed intervals. Weekly reports, daily digest emails, DB cleanup jobs, orphan session purging. Implemented via cron-like schedulers.
+- **Chain Tasks**: Parent-child dependencies. Task B can only run after Task A succeeds. Tasks at the same level can run in parallel. Classic: video upload pipeline.
+- **Batch Tasks**: One trigger fans out into many parallel tasks. Delete account spawns sub-tasks per resource type. Send 10k reports at midnight.
 
 ### Chain Tasks: Video Upload Example
 
@@ -717,21 +666,10 @@ Python / Celery Beat
 
 When your platform grows to thousands of concurrent users, the naive task-queue setup that worked in development starts to crack. These are the areas you must engineer carefully before you hit production scale.
 
-Horizontal scaling
-
-Design consumers to be **stateless**: all shared state lives in the database or cache, not in the process. This lets you spin up N replicas with zero config changes. More traffic -> add workers, not bigger servers.
-
-Ordered delivery
-
-Parallel consumers break FIFO ordering. If strict order matters (e.g. charge -> refund must happen in sequence), use SQS FIFO with a `MessageGroupId` or a single-consumer queue for that task type.
-
-Error categories
-
-Distinguish _transient_ errors (network timeout, 503 -> retry) from _permanent_ errors (invalid payload, 400 -> skip retry immediately, send to DLQ). Retrying permanent errors wastes resources and fills your queue.
-
-Backpressure
-
-If the queue grows faster than workers consume, you have backpressure. Solutions: scale consumers horizontally, implement priority queues, or shed load with circuit breakers on the producer side.
+- **Horizontal scaling**: Design consumers to be **stateless**: all shared state lives in the database or cache, not in the process. This lets you spin up N replicas with zero config changes. More traffic -> add workers, not bigger servers.
+- **Ordered delivery**: Parallel consumers break FIFO ordering. If strict order matters (e.g. charge -> refund must happen in sequence), use SQS FIFO with a `MessageGroupId` or a single-consumer queue for that task type.
+- **Error categories**: Distinguish _transient_ errors (network timeout, 503 -> retry) from _permanent_ errors (invalid payload, 400 -> skip retry immediately, send to DLQ). Retrying permanent errors wastes resources and fills your queue.
+- **Backpressure**: If the queue grows faster than workers consume, you have backpressure. Solutions: scale consumers horizontally, implement priority queues, or shed load with circuit breakers on the producer side.
 
 17
 
@@ -843,9 +781,7 @@ client.SendMessage(ctx, &sqs.SendMessageInput{
 Go / AWS SQS FIFO
 ```
 
-Rule of thumb
-
-Always apply _at least one_ of these patterns. For most tasks: idempotency key in Redis (Pattern 1) is the simplest and cheapest. For DB-heavy tasks: upserts (Pattern 2) + transaction (Pattern 3). For SQS workloads: FIFO dedup ID (Pattern 4).
+- **Rule of thumb**: Always apply _at least one_ of these patterns. For most tasks: idempotency key in Redis (Pattern 1) is the simplest and cheapest. For DB-heavy tasks: upserts (Pattern 2) + transaction (Pattern 3). For SQS workloads: FIFO dedup ID (Pattern 4).
 
 18
 
@@ -855,13 +791,8 @@ External APIs impose rate limits. If your workers send 500 emails per second and
 
 ### Two Core Algorithms
 
-Token Bucket
-
-A "bucket" fills with tokens at a fixed rate (e.g. 100 tokens/second). Each API call consumes one token. If the bucket is empty, the call waits. Allows bursts up to bucket capacity. Redis implementation: `INCR` + `EXPIRE`.
-
-Sliding Window
-
-Count requests in the last N seconds using a sliding time window. More accurate than token bucket for strict rate compliance. Redis implementation: sorted sets with timestamps as scores.
+- **Token Bucket**: A "bucket" fills with tokens at a fixed rate (e.g. 100 tokens/second). Each API call consumes one token. If the bucket is empty, the call waits. Allows bursts up to bucket capacity. Redis implementation: `INCR` + `EXPIRE`.
+- **Sliding Window**: Count requests in the last N seconds using a sliding time window. More accurate than token bucket for strict rate compliance. Redis implementation: sorted sets with timestamps as scores.
 
 ### Token Bucket in Python (Redis-backed)
 
@@ -1222,29 +1153,12 @@ Imagine a payment workflow: charge card -> reserve inventory -> send confirmatio
 
 ### Core Temporal Concepts
 
-Workflow
-
-A durable function that orchestrates the entire business process. Written as regular code but Temporal serializes every step. If the server crashes, execution resumes exactly where it left off.
-
-Activity
-
-An individual unit of work, equivalent to a Celery task. Has its own retry policy, timeout, and heartbeat. Activities interact with the outside world (DB, external APIs).
-
-Worker
-
-A process that polls the Temporal server for workflow/activity tasks and executes them. Same concept as Celery workers.
-
-Signal
-
-An external event sent into a running workflow. E.g. "human approved payment" -> workflow resumes. Enables human-in-the-loop patterns.
-
-Query
-
-Read the current state of a running workflow without affecting it. E.g. "what step is this order on?"
-
-Event History
-
-Temporal persists every single event in a workflow's lifetime. This is how it achieves crash recovery, on restart it replays the history to restore state.
+- **Workflow**: A durable function that orchestrates the entire business process. Written as regular code but Temporal serializes every step. If the server crashes, execution resumes exactly where it left off.
+- **Activity**: An individual unit of work, equivalent to a Celery task. Has its own retry policy, timeout, and heartbeat. Activities interact with the outside world (DB, external APIs).
+- **Worker**: A process that polls the Temporal server for workflow/activity tasks and executes them. Same concept as Celery workers.
+- **Signal**: An external event sent into a running workflow. E.g. "human approved payment" -> workflow resumes. Enables human-in-the-loop patterns.
+- **Query**: Read the current state of a running workflow without affecting it. E.g. "what step is this order on?"
+- **Event History**: Temporal persists every single event in a workflow's lifetime. This is how it achieves crash recovery, on restart it replays the history to restore state.
 
 ### Example: Video Processing Workflow in Go
 

@@ -34,9 +34,9 @@ Before containers, deploying software was like mailing a recipe and hoping the r
 - **Isolation**: two apps that need conflicting versions of the same library can run side by side on one host, each in its own sealed box, without interfering.
 - **Density & portability**: containers are light enough to pack many onto a single machine and to move freely between laptop, CI, and any cloud, the foundation that orchestration (Part IV) and modern CI/CD (Part V) build on.
 
-The one idea
-
+<Callout type="info" title="The one idea">
 A container makes **"the thing that runs in production" identical to "the thing you built and tested."** Everything else, images, Docker, Kubernetes, pipelines, is machinery for building, shipping, and running that identical artifact at scale.
+</Callout>
 
 ## Containers vs Virtual Machines
 
@@ -55,9 +55,9 @@ The instinctive question is "isn't this just a virtual machine?" The answer reve
 | Density per host   | Tens                            | Hundreds to thousands                   |
 | Isolation strength | Stronger (separate kernels)     | Weaker (shared kernel), a real tradeoff |
 
-The shared-kernel tradeoff
-
+<Callout type="warn" title="The shared-kernel tradeoff">
 Sharing one kernel is what makes containers light _and_ is their main security caveat: a kernel-level escape affects every container on the host, whereas VMs have a thicker boundary. This is why multi-tenant platforms often run containers _inside_ VMs, and why container security (sec 17, and the security chapter) focuses on least privilege, non-root users, and dropping capabilities. Containers are isolation, not a hard security sandbox by default.
+</Callout>
 
 ## What a Container Actually Is
 
@@ -99,17 +99,13 @@ The clever part is _how_ an image stores its filesystem: as a stack of **layers*
 <svg viewBox="0 0 720 270" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A stack of read-only image layers shared by two containers, each adding its own writable layer on top via copy-on-write"><text x="20" y="22" class="mono" font-size="11" font-weight="700" fill="var(--dg-warn)">IMAGE = read-only layers (shared)</text><rect x="20" y="32" width="300" height="26" rx="5" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="34" y="50" class="mono" font-size="10" fill="var(--dg-warn-2)">L4  COPY app binary           +2 MB</text><rect x="20" y="62" width="300" height="26" rx="5" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="34" y="80" class="mono" font-size="10" fill="var(--dg-warn-2)">L3  pip/go install deps      +40 MB</text><rect x="20" y="92" width="300" height="26" rx="5" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="34" y="110" class="mono" font-size="10" fill="var(--dg-warn-2)">L2  apt-get runtime libs     +25 MB</text><rect x="20" y="122" width="300" height="26" rx="5" fill="var(--dg-accent-surface)" stroke="var(--dg-warn)"></rect><text x="34" y="140" class="mono" font-size="10" fill="var(--dg-warn-2)">L1  base image (e.g. debian) 50 MB</text><text x="170" y="166" class="serif" font-size="11" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">these four layers are stored once &#x26; shared</text><text x="500" y="22" class="mono" font-size="11" font-weight="700" fill="var(--dg-ok)">CONTAINERS add a writable top</text><rect x="400" y="40" width="140" height="24" rx="5" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="470" y="57" class="mono" font-size="10" fill="var(--dg-ok)" text-anchor="middle">writable (C1)</text><rect x="560" y="40" width="140" height="24" rx="5" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="630" y="57" class="mono" font-size="10" fill="var(--dg-ok)" text-anchor="middle">writable (C2)</text><defs><marker id="ua" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--dg-warn)"></path></marker></defs><path d="M470 64 V96 C470 110 360 110 322 96" stroke="var(--dg-warn)" stroke-width="1.3" fill="none" stroke-dasharray="3 3" marker-end="url(#ua)"></path><path d="M630 64 V100 C630 116 360 116 322 100" stroke="var(--dg-warn)" stroke-width="1.3" fill="none" stroke-dasharray="3 3" marker-end="url(#ua)"></path><text x="550" y="92" font-size="10" fill="var(--dg-ink-2)">both share the same</text><text x="550" y="108" font-size="10" fill="var(--dg-ink-2)">read-only layers below</text><text x="20" y="200" class="mono" font-size="11" font-weight="700" fill="var(--dg-accent)">copy-on-write</text><text x="20" y="220" font-size="11.5" fill="var(--dg-ink-2)">A container reads straight from the shared layers. The instant it <tspan font-weight="700" fill="var(--dg-ink)">modifies</tspan> a file,</text><text x="20" y="238" font-size="11.5" fill="var(--dg-ink-2)">that file is copied up into its own writable layer, the image underneath is never touched.</text><text x="20" y="258" font-size="11" font-style="italic" fill="var(--dg-accent-2)">That writable layer is ephemeral: delete the container and those changes vanish (sec 09 for persistence).</text></svg>
 </Diagram>
 
-The writable layer is not storage
-
+<Callout type="warn" title="The writable layer is not storage">
 Anything a container writes to its own filesystem dies with the container. Logs, uploads, database files written "inside" are gone on restart. Persistent data must live in a **volume** (sec 09) or an external service. This ephemerality is a feature, it's what makes containers disposable and replaceable, but it's the most common beginner trap.
+</Callout>
 
 ## The Dockerfile
 
 A **Dockerfile** is the recipe that builds an image: a sequence of instructions, executed top to bottom, _each producing one layer_ (sec 04). `docker build` reads it, runs each step, and caches the result. Because the file is plain text in your repo, your build is reproducible and reviewable, the environment becomes code. Here is the same web service containerized in Go and in Python:
-
-______
-
-● Go● Python
 
 ```dockerfile
 # FROM picks the base image, the first (bottom) layer. Pin a version, never :latest
@@ -174,10 +170,6 @@ The single most impactful technique for production images. The problem: _buildin
 <svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A large builder stage with full SDK producing a binary, with only that binary copied into a small final runtime stage, the builder discarded"><text x="180" y="22" class="mono" font-size="11" font-weight="700" fill="var(--dg-accent-2)" text-anchor="middle">STAGE 1 / builder (discarded)</text><rect x="30" y="32" width="300" height="150" rx="12" fill="var(--dg-accent-border)" stroke="var(--dg-accent-2)"></rect><text x="180" y="56" font-size="12" font-weight="700" fill="var(--dg-accent-2)" text-anchor="middle">golang:1.22 / python full</text><g class="mono" font-size="10" fill="var(--dg-ink-2)"><text x="50" y="80" fill="var(--dg-ink)">+ compiler / full SDK</text><text x="50" y="100" fill="var(--dg-ink)">+ build dependencies</text><text x="50" y="120" fill="var(--dg-ink)">+ your source tree</text><text x="50" y="140" fill="var(--dg-ink)">+ intermediate objects</text></g><rect x="70" y="150" width="220" height="22" rx="5" fill="var(--dg-inverse)"></rect><text x="180" y="166" class="mono" font-size="10" fill="var(--dg-on-inverse-info)" text-anchor="middle">/server (the only keeper)</text><text x="180" y="200" font-size="11" font-style="italic" fill="var(--dg-accent-2)" text-anchor="middle">~900 MB, thrown away after build</text><defs><marker id="ma" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto"><path d="M0 0 L8 3.5 L0 7 Z" fill="var(--dg-ok)"></path></marker></defs><path d="M332 161 H388" stroke="var(--dg-ok)" stroke-width="2.4" marker-end="url(#ma)"></path><text x="360" y="150" class="mono" font-size="9" fill="var(--dg-ok)" text-anchor="middle">COPY --from</text><text x="540" y="22" class="mono" font-size="11" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">STAGE 2 / final (shipped)</text><rect x="400" y="92" width="300" height="90" rx="12" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="550" y="116" font-size="12" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">distroless / alpine</text><rect x="440" y="128" width="220" height="22" rx="5" fill="var(--dg-inverse)"></rect><text x="550" y="144" class="mono" font-size="10" fill="var(--dg-on-inverse-info)" text-anchor="middle">/server</text><text x="550" y="172" font-size="11" font-style="italic" fill="var(--dg-ok)" text-anchor="middle">~15 MB, binary + minimal runtime only</text></svg>
 </Diagram>
 
-______
-
-● Go● Python
-
 ```dockerfile
 # ---- Stage 1: build with the full Go toolchain ----
 FROM golang:1.22 AS builder
@@ -220,9 +212,9 @@ CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
 
 Go compiles to a single static binary, so the final stage can be near-empty (distroless/scratch). Python needs the interpreter, so the win comes from copying a pre-built virtualenv into a `-slim` base instead of carrying the compilers.
 
-Why this matters in production
-
+<Callout type="info" title="Why this matters in production">
 Smaller images pull faster (quicker autoscaling and rollouts, sec 18), cost less to store and transfer, and shrink the attack surface dramatically, a distroless image has no shell for an attacker to use. Multi-stage builds are the default for any serious service image.
+</Callout>
 
 ## Image Optimization & Layer Caching
 
@@ -253,9 +245,9 @@ dist/
 .vscode/
 ```
 
-Cleanup must be in the same layer
-
+<Callout type="warn" title="Cleanup must be in the same layer">
 `RUN apt-get install ...` on one line and `RUN rm -rf /var/lib/apt/lists/*` on the next does _not_ reduce size, the files still exist in the install layer. Chain them: `RUN apt-get update && apt-get install -y X && rm -rf /var/lib/apt/lists/*` so the cleanup happens before the layer is sealed.
+</Callout>
 
 ## Runtime, Registries & Tags
 
@@ -289,9 +281,9 @@ A **registry** is the server that stores images (Docker Hub, GitHub Container Re
 <svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dockerfile builds an image, which is pushed to a registry, then pulled and run by CI, staging, and production"><defs><marker id="ba" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 Z" fill="var(--dg-accent-2)"></path></marker></defs><rect x="20" y="50" width="120" height="50" rx="9" fill="var(--dg-accent)"></rect><text x="80" y="72" font-size="11.5" font-weight="700" fill="var(--dg-on-accent)" text-anchor="middle">docker build</text><text x="80" y="89" class="mono" font-size="9" fill="var(--dg-on-accent)" text-anchor="middle">Dockerfile</text><path d="M142 75 H210" stroke="var(--dg-accent-2)" stroke-width="1.8" marker-end="url(#ba)"></path><text x="176" y="67" class="mono" font-size="9" fill="var(--dg-accent-2)" text-anchor="middle">push</text><rect x="212" y="44" width="150" height="62" rx="9" fill="var(--dg-inverse)"></rect><text x="287" y="70" font-size="12" font-weight="700" fill="var(--dg-on-inverse)" text-anchor="middle">Registry</text><text x="287" y="88" class="mono" font-size="9" fill="var(--dg-on-inverse)" text-anchor="middle">stores tagged layers</text><g stroke="var(--dg-ok)" stroke-width="1.8" fill="none"><path d="M362 60 C420 40 460 36 520 34" marker-end="url(#ba2)"></path><path d="M362 75 H520" marker-end="url(#ba2)"></path><path d="M362 90 C420 110 460 114 520 116" marker-end="url(#ba2)"></path></g><defs><marker id="ba2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 Z" fill="var(--dg-ok)"></path></marker></defs><text x="445" y="58" class="mono" font-size="9" fill="var(--dg-ok)" text-anchor="middle">pull</text><rect x="522" y="22" width="150" height="26" rx="6" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="597" y="39" font-size="10.5" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">CI runs tests</text><rect x="522" y="62" width="150" height="26" rx="6" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="597" y="79" font-size="10.5" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">staging</text><rect x="522" y="102" width="150" height="26" rx="6" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="597" y="119" font-size="10.5" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">production (K8s)</text></svg>
 </Diagram>
 
-Never deploy `:latest`
-
+<Callout type="warn" title="Never deploy :latest">
 `latest` is just a tag that moves; it doesn't mean "newest" and gives you no idea _what_ is running. Two machines pulling `:latest` a day apart can get different images, the exact non-reproducibility containers exist to kill. Tag with an immutable version or the git commit SHA (`myapp:1.4.0`, `myapp:git-9f2c1a`) so a running container maps to exact source.
+</Callout>
 
 <Callout type="info" title="OCI: the standard underneath">
 "Docker image" is shorthand, the format is standardized by the **Open Container Initiative (OCI)**, which is why images built with Docker run under other runtimes (containerd, CRI-O, Podman) and on Kubernetes without Docker installed. You build to a spec, not to one vendor.
@@ -321,9 +313,9 @@ Because a container's writable layer is destroyed with the container (sec 04), a
 | **Bind mount** `-v ./src:/app/src`                    | Dev-time live reload, edit on the host, see changes in the container instantly. |
 | **tmpfs**                                             | Sensitive scratch data kept in RAM only, never written to disk.                 |
 
-Stateless containers, stateful volumes
-
+<Callout type="warn" title="Stateless containers, stateful volumes">
 Treat containers as disposable and keep all durable state in volumes or external managed services. In Kubernetes especially, the prevailing pattern is _stateless_ app containers (trivially scaled and replaced, sec 18) with state pushed to managed databases or persistent volumes. If killing a container loses data, the design has leaked state into the wrong place.
+</Callout>
 
 ## Docker Compose
 
@@ -401,9 +393,9 @@ The mindset shift that makes Kubernetes click: you don't issue imperative comman
 
 Imperative is telling a driver every turn. Declarative is giving a destination to a self-correcting autopilot: drift off course, a crash, a dead node, and it steers back on its own, continuously, without new instructions.
 
-Reconciliation in one line
-
+<Callout type="info" title="Reconciliation in one line">
 Everything in Kubernetes is a control loop comparing **desired state** (what you declared) to **actual state** (what's running) and taking action to close the gap. Internalize that loop and the entire system, Deployments, scaling, healing, rollouts, becomes one idea applied over and over.
+</Callout>
 
 ## Kubernetes Architecture
 
@@ -436,9 +428,9 @@ Usually a pod holds exactly one container (your app). The multi-container case i
 <svg viewBox="0 0 720 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A pod containing an app container and a sidecar sharing a single IP via localhost and a shared volume"><rect x="120" y="30" width="480" height="130" rx="16" fill="var(--dg-accent-surface)" stroke="var(--dg-ok)" stroke-dasharray="6 4"></rect><text x="360" y="52" class="mono" font-size="11" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">POD, shares one IP &#x26; lifecycle</text><rect x="150" y="66" width="180" height="56" rx="10" fill="var(--dg-ok-surface)" stroke="var(--dg-ok)"></rect><text x="240" y="90" font-size="12" font-weight="700" fill="var(--dg-ok)" text-anchor="middle">app container</text><text x="240" y="108" class="mono" font-size="9" fill="var(--dg-ink-2)" text-anchor="middle">:8080</text><rect x="390" y="66" width="180" height="56" rx="10" fill="var(--dg-warn-surface)" stroke="var(--dg-warn)"></rect><text x="480" y="90" font-size="12" font-weight="700" fill="var(--dg-warn)" text-anchor="middle">sidecar</text><text x="480" y="108" class="mono" font-size="9" fill="var(--dg-ink-2)" text-anchor="middle">log shipper / proxy</text><defs><marker id="poa" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--dg-ok)"></path></marker></defs><path d="M330 94 H388" stroke="var(--dg-ok)" stroke-width="1.6" marker-end="url(#poa)"></path><text x="359" y="86" class="mono" font-size="8.5" fill="var(--dg-ok)" text-anchor="middle">localhost</text><text x="360" y="146" font-size="11" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">one pod IP / same node / live and die together</text></svg>
 </Diagram>
 
-Pods are mortal and disposable
-
+<Callout type="warn" title="Pods are mortal and disposable">
 A pod is _ephemeral_: it can be killed and replaced at any time (node failure, scaling down, a rollout), and the replacement gets a **new IP**. So you never hard-code a pod's IP and never rely on a specific pod surviving. This is exactly why Services exist (sec 15), to provide a stable address in front of a constantly-churning set of pods, and why you let a Deployment manage pods rather than creating them directly (sec 14).
+</Callout>
 
 ## Deployments & ReplicaSets
 
@@ -562,9 +554,9 @@ stringData:                       # plaintext here; stored base64-encoded in etc
 # Your app then reads os.Getenv("LOG_LEVEL") / os.environ["DATABASE_URL"] (sec config chapter)
 ```
 
-Secrets are not encrypted by default
-
+<Callout type="warn" title="Secrets are not encrypted by default">
 A Kubernetes Secret is only **base64-encoded** in etcd, not encrypted, base64 is encoding, not protection. For real safety enable _encryption at rest_ for etcd, lock down RBAC so few identities can read Secrets, and for sensitive systems use an external manager (Vault, cloud secret stores, or the Secrets Store CSI driver). And never commit real secret values to Git, the same never-leak-credentials discipline as the security and auth chapters.
+</Callout>
 
 ## Health Probes & Resource Management
 
@@ -637,9 +629,9 @@ When you change the image tag and re-apply, a Deployment performs a **rolling up
 <svg viewBox="0 0 720 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A rolling update across three steps, old version pods being replaced one at a time by new version pods while capacity stays up"><g font-family="var(--font-diagram-mono)" font-size="9"><text x="60" y="24" fill="var(--dg-ink-2)" text-anchor="middle">start</text><rect x="20" y="32" width="26" height="40" rx="4" fill="var(--dg-accent)"></rect><rect x="50" y="32" width="26" height="40" rx="4" fill="var(--dg-accent)"></rect><rect x="80" y="32" width="26" height="40" rx="4" fill="var(--dg-accent)"></rect><text x="63" y="92" fill="var(--dg-accent-2)" text-anchor="middle">v1 v1 v1</text><text x="280" y="24" fill="var(--dg-ink-2)" text-anchor="middle">mid-rollout</text><rect x="220" y="32" width="26" height="40" rx="4" fill="var(--dg-ok)"></rect><rect x="250" y="32" width="26" height="40" rx="4" fill="var(--dg-accent)"></rect><rect x="280" y="32" width="26" height="40" rx="4" fill="var(--dg-accent)"></rect><rect x="310" y="32" width="26" height="40" rx="4" fill="var(--dg-ok-surface)"></rect><text x="278" y="92" fill="var(--dg-ink-2)" text-anchor="middle">v2 v1 v1 (+v2 warming)</text><text x="560" y="24" fill="var(--dg-ink-2)" text-anchor="middle">done</text><rect x="520" y="32" width="26" height="40" rx="4" fill="var(--dg-ok)"></rect><rect x="550" y="32" width="26" height="40" rx="4" fill="var(--dg-ok)"></rect><rect x="580" y="32" width="26" height="40" rx="4" fill="var(--dg-ok)"></rect><text x="563" y="92" fill="var(--dg-ok)" text-anchor="middle">v2 v2 v2</text></g><defs><marker id="ru" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 Z" fill="var(--dg-accent-2)"></path></marker></defs><path d="M120 52 H214" stroke="var(--dg-accent-2)" stroke-width="1.6" marker-end="url(#ru)"></path><path d="M350 52 H514" stroke="var(--dg-accent-2)" stroke-width="1.6" marker-end="url(#ru)"></path><text x="360" y="128" class="serif" font-size="12.5" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">A new pod only takes traffic after passing readiness; old pods drain gracefully (sec 17).</text><text x="360" y="150" class="serif" font-size="12.5" font-style="italic" fill="var(--dg-ink-2)" text-anchor="middle">If v2 never becomes Ready, the rollout halts, capacity is never sacrificed.</text></svg>
 </Diagram>
 
-It all comes together here
-
+<Callout type="info" title="It all comes together here">
 Zero-downtime deploys aren't one feature, they're the _composition_ of replicas (sec 14), readiness probes (sec 17), graceful shutdown, and the Service abstraction (sec 15) keeping a stable address over a shifting pod set. Each piece earned its place; the rollout is where they pay off.
+</Callout>
 
 Part V / CI/CD & Production
 
@@ -703,9 +695,9 @@ The rolling update (sec 18) is the default, but riskier releases call for strate
 
 The pipeline in sec 19 _pushes_ changes to the cluster. **GitOps** inverts that: the desired state of the cluster lives entirely in a Git repository (all those YAML manifests), and an in-cluster agent (Argo CD, Flux) continuously _pulls_ from Git and reconciles the cluster to match. This is the reconciliation loop of sec 11 extended to deployments themselves: Git is desired state, the cluster is actual state, the agent closes the gap. You deploy by merging a pull request; you roll back with `git revert`; and the repo is a complete, audited history of every change to production.
 
-The throughline
-
+<Callout type="info" title="The throughline">
 Notice the same idea at three scales: a container keeps the _artifact_ identical, a Deployment keeps the _running pods_ matching a spec, and GitOps keeps the _whole cluster_ matching Git. Declare desired state, let a loop reconcile reality, it's containers and Kubernetes all the way down.
+</Callout>
 
 ## Production Cheat-Sheet
 
